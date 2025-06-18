@@ -1,13 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My GitHub Pages Site</title>
-</head>
-<body>
-    <h1>Welcome ryuya Site</h1>
-    <p>This is my first GitHub Pages deployment!</p>
-    <p>大学で統計学を学んでおります。スノーボードが大好きです！</p>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dashboard</title>
+    <!-- 独自のCSSファイルの読み込み-->
+    <link rel="stylesheet" href="./style.css"/>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <a href="#" class="sidebar-home" data-tab="home">
+            <span class="ri-home-line"></span>
+            <span>Home</span>
+            </a>
+          </div>
+        </div>
+      </aside>
+      <main class="main-content" id="home">
+        <!-- ホームセクション -->
+        <section class="content-section" id="home">
+          
+          <!-- ヘッダー部分 -->
+          <header class="section-header">
+            
+            <!-- プロフィールアイコンを丸く囲むための箱 -->
+            <div class="profile-circle">
+              <!-- 顔のアイコンじゃ -->
+              <span class="ri-user-smile-line"></span>
+            </div>
+            
+            <!-- セクションのタイトル -->
+            <h1 class="section-title">Welcome to Your Personal Dashboard</h1>
+            
+            <!-- セクションのサブタイトル -->
+            <p class="section-subtitle">
+              Make your daily life more convenient and enjoyable
+            </p>
+
+          </header>
+          
+          <!-- メッセージ部分 -->
+          <div class="section-body">
+            <div class="section-description">
+              <!-- 1つ目の段落 -->
+              <p>
+                This dashboard is a tool to enrich your daily life. You can easily use essential features such as diary entries, memo management, and checking weather information.
+              </p>
+              
+              <!-- 2つ目の段落 -->
+              <p>
+                Small daily records become irreplaceable memories, and efficient task management leads to fulfilling days. Please use this as a partner that supports your everyday life.
+              </p>
+            </div>
+          </div>
+
+        </section>
+      </main>
+    </div>  
+  </body>
 </html>
