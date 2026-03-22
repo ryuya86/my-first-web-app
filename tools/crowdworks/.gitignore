@@ -1,0 +1,3 @@
+*.db
+health_log.json
+seen_messages.json

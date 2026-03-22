@@ -1,11 +1,15 @@
 """
-CrowdWorks自動化パイプライン
+CrowdWorks自動化パイプライン — 全機能統合版
 
 コマンド:
-  python main.py collect   - 新着案件を収集 → 提案文生成 → Slack通知
-  python main.py messages  - 未読メッセージを巡回 → AI返信案生成 → Slack通知
-  python main.py all       - collect + messages を両方実行
-  python main.py serve     - Slackアプリ常駐（承認ボタン待受）
+  python main.py collect     - 新着案件を収集 → スコアリング → 提案文生成 → Slack通知
+  python main.py messages    - 未読メッセージを巡回 → AI返信案生成 → NGチェック → Slack通知
+  python main.py all         - collect + messages を両方実行
+  python main.py alerts      - 返信遅延アラート + ヘルスチェックをSlackに送信
+  python main.py report      - 週次レポートをSlackに送信
+  python main.py monthly     - 月次収益レポートをSlackに送信
+  python main.py health      - システムヘルスチェックをSlackに送信
+  python main.py serve       - Slackアプリ常駐（承認ボタン待受）
 """
 
 import os
@@ -14,6 +18,7 @@ import time
 
 from job_collector import collect_jobs
 from proposal_generator import generate_proposal
+from error_recovery import with_retry, update_health, send_health_alert
 
 
 def _get_slack_client():
@@ -27,8 +32,22 @@ def _get_slack_client():
     return False, None, None
 
 
+@with_retry(max_retries=2, base_delay=3, component="job_collection")
+def _collect_jobs_with_retry():
+    return collect_jobs()
+
+
+@with_retry(max_retries=2, base_delay=3, component="proposal_generation")
+def _generate_proposal_with_retry(job):
+    return generate_proposal(job)
+
+
 def run_collect():
-    """案件収集 → 提案文生成 → Slack承認通知"""
+    """案件収集 → スコアリング → 競合チェック → クライアントスクリーニング → 提案文生成 → Slack通知"""
+    from job_scorer import filter_jobs_by_score, format_score_for_slack
+    from competitor_monitor import prioritize_by_competition, format_competition_for_slack
+    from history_db import log_application
+
     use_bolt, client, channel = _get_slack_client()
 
     if not use_bolt:
@@ -36,8 +55,13 @@ def run_collect():
 
     print("=== CrowdWorks 案件収集パイプライン開始 ===")
 
-    print("[1/3] 案件を収集中...")
-    jobs = collect_jobs()
+    # 1. 案件収集
+    print("[1/5] 案件を収集中...")
+    try:
+        jobs = _collect_jobs_with_retry()
+    except Exception as e:
+        print(f"  → 案件収集エラー: {e}")
+        return
     print(f"  → 新着案件: {len(jobs)}件")
 
     if not jobs:
@@ -46,45 +70,83 @@ def run_collect():
             send_summary(total_found=0, total_notified=0, errors=[])
         return
 
+    # 2. AIスコアリング
+    print("[2/5] マッチングスコアリング中...")
+    try:
+        passed, skipped = filter_jobs_by_score(jobs)
+        print(f"  → 通過: {len(passed)}件 / スキップ: {len(skipped)}件")
+        for s in skipped:
+            print(f"    スキップ: {s['title'][:40]}... (スコア: {s.get('match_score', 0)})")
+    except Exception as e:
+        print(f"  → スコアリングエラー (全件通過扱い): {e}")
+        passed = jobs
+        skipped = []
+
+    if not passed:
+        print("全案件がスコア閾値未満。終了します。")
+        return
+
+    # 3. 競合応募者数チェック
+    print("[3/5] 競合応募者数を取得中...")
+    try:
+        passed = prioritize_by_competition(passed)
+        update_health("competitor_monitor", True)
+    except Exception as e:
+        print(f"  → 競合チェックエラー (スキップ): {e}")
+        update_health("competitor_monitor", False, str(e))
+
+    # 4. 提案文生成 & 5. Slack通知
     notified = 0
     errors = []
 
-    for i, job in enumerate(jobs, 1):
-        print(f"[2/3] ({i}/{len(jobs)}) 提案文生成中: {job['title'][:50]}...")
+    for i, job in enumerate(passed, 1):
+        print(f"[4/5] ({i}/{len(passed)}) 提案文生成中: {job['title'][:50]}...")
 
         try:
-            proposal = generate_proposal(job)
+            proposal = _generate_proposal_with_retry(job)
         except Exception as e:
             error_msg = f"提案文生成エラー [{job['title'][:30]}]: {e}"
             print(f"  → {error_msg}")
             errors.append(error_msg)
             proposal = "（提案文の自動生成に失敗しました。案件ページを確認の上、手動で作成してください。）"
 
-        print(f"[3/3] ({i}/{len(jobs)}) Slack通知中...")
+        # DB記録
+        try:
+            log_application(
+                job, proposal,
+                match_score=job.get("match_score", 0),
+                competitor_count=job.get("competitor_count", 0),
+            )
+        except Exception as e:
+            print(f"  → DB記録エラー (続行): {e}")
+
+        print(f"[5/5] ({i}/{len(passed)}) Slack通知中...")
 
         if use_bolt:
             try:
-                from slack_app import send_job_with_approval
-                send_job_with_approval(client, channel, job, proposal)
+                from slack_app import send_job_with_approval_v2
+                send_job_with_approval_v2(client, channel, job, proposal)
                 notified += 1
-                print(f"  → 承認ボタン付き通知完了 ✓")
+                print(f"  → 通知完了 ✓")
             except Exception as e:
                 errors.append(f"Slack通知失敗 [{job['title'][:30]}]: {e}")
         else:
             success = send_job_notification(job, proposal)
             if success:
                 notified += 1
-                print(f"  → 通知完了 ✓")
             else:
                 errors.append(f"Slack通知失敗 [{job['title'][:30]}]")
 
-        if i < len(jobs):
+        if i < len(passed):
             time.sleep(2)
 
     if not use_bolt:
         send_summary(total_found=len(jobs), total_notified=notified, errors=errors)
 
-    print(f"\n=== 案件収集完了: {notified}/{len(jobs)}件 通知済み ===")
+    update_health("collect_pipeline", success=len(errors) == 0,
+                  message=f"{notified}/{len(passed)}件通知完了")
+
+    print(f"\n=== 案件収集完了: {notified}/{len(passed)}件 通知済み (スキップ: {len(skipped)}件) ===")
     if errors:
         print(f"エラー: {len(errors)}件")
         for e in errors:
@@ -92,9 +154,10 @@ def run_collect():
 
 
 def run_messages():
-    """未読メッセージ巡回 → AI返信案生成 → Slack承認通知"""
+    """未読メッセージ巡回 → AI返信案生成 → NGチェック → DB記録 → Slack承認通知"""
     from message_monitor import get_new_messages
     from reply_generator import generate_reply
+    from history_db import log_message
 
     use_bolt, client, channel = _get_slack_client()
 
@@ -109,8 +172,10 @@ def run_messages():
     print("[1/3] 未読メッセージを取得中...")
     try:
         threads = get_new_messages()
+        update_health("message_monitor", True)
     except Exception as e:
         print(f"  → メッセージ取得エラー: {e}")
+        update_health("message_monitor", False, str(e))
         return
 
     print(f"  → 未読スレッド: {len(threads)}件")
@@ -136,23 +201,112 @@ def run_messages():
             errors.append(error_msg)
             continue
 
+        # NGチェック結果表示
+        if not result.get("ng_safe", True):
+            has_errors = result.get("ng_has_errors", False)
+            violation_count = len(result.get("ng_violations", []))
+            level = "エラー" if has_errors else "警告"
+            print(f"  → ⚠️ NGチェック: {level} {violation_count}件検出")
+
+        # DB記録
+        try:
+            job_info = thread.get("job_info", {})
+            log_message(
+                thread_id=thread["thread_id"],
+                thread_url=thread["thread_url"],
+                client_name=client_name,
+                job_id=job_info.get("job_url", ""),
+                job_title=job_info.get("job_title", ""),
+                phase=phase,
+                direction="received",
+                body=thread.get("latest_message", ""),
+                reply_generated=reply_text,
+                ng_violations=str(result.get("ng_violations", [])),
+                action="pending",
+            )
+        except Exception as e:
+            print(f"  → DB記録エラー (続行): {e}")
+
         print(f"[3/3] ({i}/{len(threads)}) Slack通知中... (フェーズ: {phase})")
 
         try:
-            send_message_with_approval(client, channel, thread, reply_text, phase)
+            send_message_with_approval(client, channel, thread, reply_text, phase, result)
             notified += 1
-            print(f"  → 承認ボタン付き通知完了 ✓")
+            print(f"  → 通知完了 ✓")
         except Exception as e:
             errors.append(f"Slack通知失敗 [{client_name}]: {e}")
 
         if i < len(threads):
             time.sleep(2)
 
+    update_health("message_pipeline", success=len(errors) == 0,
+                  message=f"{notified}/{len(threads)}件通知完了")
+
     print(f"\n=== メッセージ巡回完了: {notified}/{len(threads)}件 通知済み ===")
     if errors:
         print(f"エラー: {len(errors)}件")
         for e in errors:
             print(f"  - {e}")
+
+
+def run_alerts():
+    """返信遅延アラート + ヘルスチェック"""
+    from delay_alert import send_delay_alerts
+    from error_recovery import send_health_alert
+
+    use_bolt, client, channel = _get_slack_client()
+    if not use_bolt:
+        print("[WARN] SLACK_BOT_TOKEN未設定")
+        return
+
+    print("=== アラートチェック ===")
+    delay_sent = send_delay_alerts(client, channel)
+    print(f"  返信遅延アラート: {'送信' if delay_sent else 'なし'}")
+
+    health_sent = send_health_alert(client, channel)
+    print(f"  ヘルスアラート: {'送信' if health_sent else 'なし'}")
+
+
+def run_weekly_report():
+    """週次レポート"""
+    from weekly_report import send_weekly_report
+    use_bolt, client, channel = _get_slack_client()
+    if not use_bolt:
+        print("[WARN] SLACK_BOT_TOKEN未設定")
+        return
+    send_weekly_report(client, channel)
+    print("週次レポート送信完了")
+
+
+def run_monthly_report():
+    """月次収益レポート"""
+    from weekly_report import send_monthly_report
+    use_bolt, client, channel = _get_slack_client()
+    if not use_bolt:
+        print("[WARN] SLACK_BOT_TOKEN未設定")
+        return
+    year_month = sys.argv[2] if len(sys.argv) > 2 else None
+    send_monthly_report(client, channel, year_month)
+    print("月次収益レポート送信完了")
+
+
+def run_health():
+    """ヘルスチェック"""
+    from error_recovery import send_health_alert, format_health_for_slack, get_health_report
+    use_bolt, client, channel = _get_slack_client()
+
+    report = get_health_report()
+    if not report:
+        print("ヘルスデータなし")
+        return
+
+    status_icons = {"ok": "🟢", "degraded": "🟡", "down": "🔴"}
+    for entry in report:
+        icon = status_icons.get(entry.get("status", "ok"), "⚪")
+        print(f"  {icon} {entry['component']}: {entry.get('message', '')}")
+
+    if use_bolt:
+        send_health_alert(client, channel)
 
 
 def run_serve():
@@ -166,23 +320,32 @@ def run_serve():
     handler.start()
 
 
+COMMANDS = {
+    "collect": run_collect,
+    "messages": run_messages,
+    "all": lambda: (run_collect(), print(), run_messages()),
+    "alerts": run_alerts,
+    "report": run_weekly_report,
+    "monthly": run_monthly_report,
+    "health": run_health,
+    "serve": run_serve,
+}
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "all"
 
-    if cmd == "collect":
-        run_collect()
-    elif cmd == "messages":
-        run_messages()
-    elif cmd == "all":
-        run_collect()
-        print()
-        run_messages()
-    elif cmd == "serve":
-        run_serve()
+    if cmd in COMMANDS:
+        COMMANDS[cmd]()
     else:
-        print("使い方: python main.py [collect|messages|all|serve]")
-        print("  collect   - 新着案件収集 → 提案文生成 → Slack通知")
-        print("  messages  - 未読メッセージ巡回 → AI返信案 → Slack通知")
+        print("使い方: python main.py [コマンド]")
+        print()
+        print("コマンド:")
+        print("  collect   - 新着案件収集 → スコアリング → 提案文生成 → Slack通知")
+        print("  messages  - 未読メッセージ巡回 → AI返信案 → NGチェック → Slack通知")
         print("  all       - collect + messages を両方実行（デフォルト）")
+        print("  alerts    - 返信遅延アラート + ヘルスチェック")
+        print("  report    - 週次レポートをSlackに送信")
+        print("  monthly   - 月次収益レポートをSlackに送信")
+        print("  health    - システムヘルスチェック")
         print("  serve     - Slackアプリ常駐（承認ボタン待受）")
         sys.exit(1)

@@ -1,9 +1,12 @@
 """
 AI返信文生成モジュール — 会話履歴と案件フェーズに応じた返信を生成
+テンプレートライブラリ参照 + NGワードチェック統合
 """
 
 import anthropic
 import os
+from reply_templates import format_templates_for_prompt
+from ng_checker import check_ng_words, format_violations_for_slack
 
 MODEL = "claude-sonnet-4-6"
 
@@ -111,6 +114,10 @@ REPLY_PROMPT = """
 - 「ご連絡ありがとうございます」系の定型は毎回使わない
 - 具体的なアクションや次のステップを含める
 - 不明点があれば質問を含める
+- 価格・納期の確約表現を避ける
+- 個人情報（電話番号・メールアドレス）を含めない
+- 外部での直接取引を誘導しない
+{template_section}
 
 返信文のみを出力してください（件名不要）。
 """
@@ -143,7 +150,7 @@ def format_conversation(messages):
 
 
 def generate_reply(thread):
-    """スレッド情報から返信文を生成"""
+    """スレッド情報から返信文を生成（テンプレート参照 + NGチェック付き）"""
     client = anthropic.Anthropic()
 
     messages = thread["messages"]
@@ -151,6 +158,10 @@ def generate_reply(thread):
 
     # フェーズ判定
     phase = detect_phase(messages, job_info.get("status", ""))
+
+    # テンプレート参照情報を生成
+    latest_msg = messages[-1]["body"] if messages else ""
+    template_section = format_templates_for_prompt(phase, latest_msg)
 
     system_prompt = PHASE_PROMPTS.get(phase, PHASE_PROMPTS["pre_contract"])
     conversation = format_conversation(messages)
@@ -160,6 +171,7 @@ def generate_reply(thread):
         job_url=job_info.get("job_url", ""),
         status=job_info.get("status", "不明"),
         conversation_history=conversation,
+        template_section=template_section,
     )
 
     message = client.messages.create(
@@ -169,9 +181,19 @@ def generate_reply(thread):
         messages=[{"role": "user", "content": user_prompt}],
     )
 
+    reply_text = message.content[0].text
+
+    # NGワードチェック
+    ng_result = check_ng_words(reply_text)
+    ng_report = format_violations_for_slack(ng_result) if not ng_result.is_safe else ""
+
     return {
-        "text": message.content[0].text,
+        "text": reply_text,
         "phase": phase,
+        "ng_safe": ng_result.is_safe,
+        "ng_has_errors": any(v["severity"] == "error" for v in ng_result.violations),
+        "ng_report": ng_report,
+        "ng_violations": ng_result.violations,
     }
 
 

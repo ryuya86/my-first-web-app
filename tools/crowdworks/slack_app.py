@@ -1,5 +1,8 @@
 """
-Slack Boltアプリ — 承認ボタン付き通知 & ワンクリック自動応募 & メッセージ返信
+Slack Boltアプリ — 全機能統合版
+  - 案件応募: スコア/競合/クライアント評価表示 → 承認ボタン
+  - メッセージ返信: NGチェック結果表示 → 承認ボタン
+  - ヘルスチェックコマンド
 
 起動: python slack_app.py
 """
@@ -11,6 +14,8 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from auto_apply import apply_to_job
 from message_sender import send_reply as send_cw_reply
+from ng_checker import check_ng_words, format_violations_for_slack
+from history_db import log_message, update_application_status
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,7 +24,7 @@ app = App(token=os.environ["SLACK_BOT_TOKEN"])
 
 # 一時保存ストア
 pending_jobs = {}       # job_id → {job, proposal}
-pending_replies = {}    # thread_id → {thread, reply}
+pending_replies = {}    # thread_id → {thread, reply, ng_result}
 
 CATEGORY_LABELS = {
     "data_entry": "データ入力",
@@ -39,20 +44,20 @@ PHASE_LABELS = {
 
 
 # ============================================================
-# 案件応募関連（既存）
+# 案件応募（V2: スコア/競合/クライアント評価付き）
 # ============================================================
 
-def build_job_blocks(job, proposal, job_id):
-    """承認ボタン付きのSlackメッセージブロックを生成"""
+def build_job_blocks_v2(job, proposal, job_id):
+    """スコア・競合・クライアント評価付きのSlackメッセージブロック"""
+    from job_scorer import format_score_for_slack
+    from competitor_monitor import format_competition_for_slack
+
     category_label = CATEGORY_LABELS.get(job.get("category", "other"), "その他")
 
-    return [
+    blocks = [
         {
             "type": "header",
-            "text": {
-                "type": "plain_text",
-                "text": f"📋 新着案件: {job['title'][:140]}",
-            },
+            "text": {"type": "plain_text", "text": f"📋 新着案件: {job['title'][:140]}"},
         },
         {
             "type": "section",
@@ -61,27 +66,37 @@ def build_job_blocks(job, proposal, job_id):
                 {"type": "mrkdwn", "text": f"*検索KW:*\n{job.get('search_keyword', '-')}"},
             ],
         },
+    ]
+
+    # マッチングスコア
+    if job.get("match_score") is not None:
+        score_text = format_score_for_slack(job)
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*🎯 マッチングスコア:*\n{score_text}"},
+        })
+
+    # 競合応募者数
+    if job.get("competitor_count") is not None and job["competitor_count"] >= 0:
+        comp_text = format_competition_for_slack(job)
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": comp_text},
+        })
+
+    blocks.extend([
         {
             "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*案件概要:*\n{job['summary'][:500]}",
-            },
+            "text": {"type": "mrkdwn", "text": f"*案件概要:*\n{job['summary'][:500]}"},
         },
         {
             "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"<{job['url']}|🔗 案件ページを開く>",
-            },
+            "text": {"type": "mrkdwn", "text": f"<{job['url']}|🔗 案件ページを開く>"},
         },
         {"type": "divider"},
         {
             "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*📝 提案文:*\n```\n{proposal[:2900]}\n```",
-            },
+            "text": {"type": "mrkdwn", "text": f"*📝 提案文:*\n```\n{proposal[:2900]}\n```"},
         },
         {"type": "divider"},
         {
@@ -109,17 +124,29 @@ def build_job_blocks(job, proposal, job_id):
                 },
             ],
         },
-    ]
+    ])
+
+    return blocks
 
 
 def send_job_with_approval(client, channel, job, proposal):
-    """承認ボタン付きで案件をSlackに送信"""
+    """旧バージョン互換（スコアなし）"""
     job_id = job["id"]
     pending_jobs[job_id] = {"job": job, "proposal": proposal}
-
     client.chat_postMessage(
         channel=channel,
-        blocks=build_job_blocks(job, proposal, job_id),
+        blocks=build_job_blocks_v2(job, proposal, job_id),
+        text=f"新着案件: {job['title']}",
+    )
+
+
+def send_job_with_approval_v2(client, channel, job, proposal):
+    """V2: スコア・競合情報付き"""
+    job_id = job["id"]
+    pending_jobs[job_id] = {"job": job, "proposal": proposal}
+    client.chat_postMessage(
+        channel=channel,
+        blocks=build_job_blocks_v2(job, proposal, job_id),
         text=f"新着案件: {job['title']}",
     )
 
@@ -228,17 +255,16 @@ def handle_skip(ack, body, client):
 
 
 # ============================================================
-# メッセージ返信関連（新規）
+# メッセージ返信（NGチェック統合）
 # ============================================================
 
-def build_message_blocks(thread, reply_text, phase):
-    """メッセージ承認通知のブロックを生成"""
+def build_message_blocks(thread, reply_text, phase, ng_result=None):
+    """NGチェック結果付きメッセージ承認通知"""
     thread_id = thread["thread_id"]
     client_name = thread["client_name"]
     job_title = thread.get("job_info", {}).get("job_title", "不明")
     phase_label = PHASE_LABELS.get(phase, "不明")
 
-    # 直近の会話を表示（最新3件）
     recent = thread["messages"][-3:]
     convo_lines = []
     for m in recent:
@@ -246,13 +272,10 @@ def build_message_blocks(thread, reply_text, phase):
         convo_lines.append(f"*{tag}:*\n{m['body'][:200]}")
     conversation_text = "\n\n".join(convo_lines)
 
-    return [
+    blocks = [
         {
             "type": "header",
-            "text": {
-                "type": "plain_text",
-                "text": f"💬 新着メッセージ: {client_name}",
-            },
+            "text": {"type": "plain_text", "text": f"💬 新着メッセージ: {client_name}"},
         },
         {
             "type": "section",
@@ -263,71 +286,78 @@ def build_message_blocks(thread, reply_text, phase):
         },
         {
             "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"<{thread['thread_url']}|🔗 CrowdWorksで会話を開く>",
-            },
+            "text": {"type": "mrkdwn", "text": f"<{thread['thread_url']}|🔗 CrowdWorksで会話を開く>"},
         },
         {"type": "divider"},
         {
             "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*最近のやりとり:*\n{conversation_text[:1500]}",
-            },
+            "text": {"type": "mrkdwn", "text": f"*最近のやりとり:*\n{conversation_text[:1500]}"},
         },
         {"type": "divider"},
         {
             "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*🤖 AI返信案:*\n```\n{reply_text[:2900]}\n```",
-            },
-        },
-        {"type": "divider"},
-        {
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "✅ この返信を送信"},
-                    "style": "primary",
-                    "action_id": "approve_reply",
-                    "value": thread_id,
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "✏️ 編集して送信"},
-                    "action_id": "edit_reply",
-                    "value": thread_id,
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "❌ スキップ"},
-                    "style": "danger",
-                    "action_id": "skip_reply",
-                    "value": thread_id,
-                },
-            ],
+            "text": {"type": "mrkdwn", "text": f"*🤖 AI返信案:*\n```\n{reply_text[:2900]}\n```"},
         },
     ]
 
+    # NGチェック結果
+    if ng_result and not ng_result.get("ng_safe", True):
+        ng_report = ng_result.get("ng_report", "")
+        if ng_report:
+            blocks.append({
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": ng_report},
+            })
 
-def send_message_with_approval(client, channel, thread, reply_text, phase):
-    """承認ボタン付きでメッセージ返信案をSlackに送信"""
+    blocks.append({"type": "divider"})
+
+    # NGエラーがある場合は送信ボタンを無効化（編集のみ可能）
+    has_ng_errors = ng_result.get("ng_has_errors", False) if ng_result else False
+
+    action_elements = []
+    if not has_ng_errors:
+        action_elements.append({
+            "type": "button",
+            "text": {"type": "plain_text", "text": "✅ この返信を送信"},
+            "style": "primary",
+            "action_id": "approve_reply",
+            "value": thread_id,
+        })
+
+    action_elements.extend([
+        {
+            "type": "button",
+            "text": {"type": "plain_text", "text": "✏️ 編集して送信"},
+            "action_id": "edit_reply",
+            "value": thread_id,
+        },
+        {
+            "type": "button",
+            "text": {"type": "plain_text", "text": "❌ スキップ"},
+            "style": "danger",
+            "action_id": "skip_reply",
+            "value": thread_id,
+        },
+    ])
+
+    blocks.append({"type": "actions", "elements": action_elements})
+
+    return blocks
+
+
+def send_message_with_approval(client, channel, thread, reply_text, phase, ng_result=None):
+    """NGチェック結果付きで返信案をSlackに送信"""
     thread_id = thread["thread_id"]
     pending_replies[thread_id] = {"thread": thread, "reply": reply_text}
-
     client.chat_postMessage(
         channel=channel,
-        blocks=build_message_blocks(thread, reply_text, phase),
+        blocks=build_message_blocks(thread, reply_text, phase, ng_result),
         text=f"新着メッセージ: {thread['client_name']}",
     )
 
 
 @app.action("approve_reply")
 def handle_approve_reply(ack, body, client):
-    """「この返信を送信」ボタン"""
     ack()
     thread_id = body["actions"][0]["value"]
     channel = body["channel"]["id"]
@@ -336,6 +366,16 @@ def handle_approve_reply(ack, body, client):
     data = pending_replies.get(thread_id)
     if not data:
         client.chat_postMessage(channel=channel, text="⚠️ メッセージデータが見つかりません（期限切れ）")
+        return
+
+    # 送信前に再度NGチェック
+    ng_result = check_ng_words(data["reply"])
+    if any(v["severity"] == "error" for v in ng_result.violations):
+        ng_report = format_violations_for_slack(ng_result)
+        client.chat_postMessage(
+            channel=channel,
+            text=f"🚫 *送信ブロック*\n{ng_report}\n\n「編集して送信」から修正してください。",
+        )
         return
 
     client.chat_update(
@@ -349,7 +389,21 @@ def handle_approve_reply(ack, body, client):
     result = send_cw_reply(data["thread"]["thread_url"], data["reply"])
 
     if result["success"]:
-        status = f"✅ *返信送信完了!*"
+        status = "✅ *返信送信完了!*"
+        # DB記録
+        try:
+            log_message(
+                thread_id=thread_id,
+                thread_url=data["thread"]["thread_url"],
+                client_name=data["thread"]["client_name"],
+                job_id="", job_title="",
+                phase="", direction="sent",
+                body=data["reply"],
+                reply_sent=data["reply"],
+                action="sent",
+            )
+        except Exception:
+            pass
     else:
         status = f"❌ *送信失敗:* {result['message']}"
 
@@ -365,7 +419,6 @@ def handle_approve_reply(ack, body, client):
 
 @app.action("edit_reply")
 def handle_edit_reply(ack, body, client):
-    """「編集して送信」ボタン → モーダル表示"""
     ack()
     thread_id = body["actions"][0]["value"]
     data = pending_replies.get(thread_id)
@@ -410,7 +463,6 @@ def handle_edit_reply(ack, body, client):
 
 @app.view("submit_edited_reply")
 def handle_edited_reply_submission(ack, body, client):
-    """編集済み返信のモーダル送信"""
     ack()
     meta = json.loads(body["view"]["private_metadata"])
     thread_id = meta["thread_id"]
@@ -423,17 +475,26 @@ def handle_edited_reply_submission(ack, body, client):
         client.chat_postMessage(channel=channel, text="⚠️ メッセージデータが見つかりません")
         return
 
+    # 編集後もNGチェック
+    ng_result = check_ng_words(edited_text)
+    if any(v["severity"] == "error" for v in ng_result.violations):
+        ng_report = format_violations_for_slack(ng_result)
+        client.chat_postMessage(
+            channel=channel,
+            text=f"🚫 *送信ブロック（編集後にもNG表現が含まれています）*\n{ng_report}",
+        )
+        return
+
     client.chat_postMessage(channel=channel, text="⏳ 編集済み返信を送信中...")
     result = send_cw_reply(data["thread"]["thread_url"], edited_text)
 
-    status = f"✅ *返信送信完了!*" if result["success"] else f"❌ *送信失敗:* {result['message']}"
+    status = "✅ *返信送信完了!*" if result["success"] else f"❌ *送信失敗:* {result['message']}"
     client.chat_postMessage(channel=channel, text=status)
     pending_replies.pop(thread_id, None)
 
 
 @app.action("skip_reply")
 def handle_skip_reply(ack, body, client):
-    """「スキップ」ボタン"""
     ack()
     thread_id = body["actions"][0]["value"]
     channel = body["channel"]["id"]
