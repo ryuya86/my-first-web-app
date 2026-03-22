@@ -1,0 +1,523 @@
+{
+  "company": {
+    "name": "仮想チーム司令塔",
+    "name_en": "Virtual Team Command Tower",
+    "business": "AI活用の受託サービス（業務代行・コンサルティング）",
+    "mission": "1人社長が40人の仮想チームを率い、案件獲得から納品まで高品質に自動化する",
+    "target": "中小企業・スタートアップ・個人事業主",
+    "departments_count": 10,
+    "agents_count": 40
+  },
+  "departments": [
+    {
+      "id": "corporate-planning",
+      "folder": "01-corporate-planning",
+      "name_ja": "経営企画部",
+      "name_en": "Corporate Planning",
+      "mission": "全社戦略の策定と事業計画の推進",
+      "color": "#4F7CAC",
+      "icon": "ri-compass-3-line",
+      "agents": [
+        {
+          "id": "haruto",
+          "name": "Haruto",
+          "name_ja": "ハルト",
+          "role": "事業戦略リード",
+          "specialty": "中長期事業戦略策定",
+          "keywords": ["戦略", "中長期", "ビジョン", "ミッション", "事業戦略", "経営方針"],
+          "templates": ["事業計画書"],
+          "avatar_emoji": "🎯"
+        },
+        {
+          "id": "mei",
+          "name": "Mei",
+          "name_ja": "メイ",
+          "role": "プロジェクト管理",
+          "specialty": "ロードマップ策定・進捗管理",
+          "keywords": ["ロードマップ", "マイルストーン", "計画", "スケジュール", "進捗"],
+          "templates": ["事業計画書"],
+          "avatar_emoji": "📋"
+        },
+        {
+          "id": "kaito",
+          "name": "Kaito",
+          "name_ja": "カイト",
+          "role": "競合分析",
+          "specialty": "競合・市場ポジショニング分析",
+          "keywords": ["競合", "差別化", "SWOT", "ポジショニング", "ベンチマーク"],
+          "templates": ["競合分析レポート"],
+          "avatar_emoji": "🔍"
+        },
+        {
+          "id": "riko",
+          "name": "Riko",
+          "name_ja": "リコ",
+          "role": "会議ファシリテーション",
+          "specialty": "会議設計・議事録・意思決定支援",
+          "keywords": ["会議", "アジェンダ", "議事録", "意思決定", "ファシリテーション"],
+          "templates": ["月次振り返り"],
+          "avatar_emoji": "💬"
+        }
+      ]
+    },
+    {
+      "id": "business-dev",
+      "folder": "02-business-dev",
+      "name_ja": "事業開発部",
+      "name_en": "Business Development",
+      "mission": "新サービス開発と既存サービスの改善",
+      "color": "#6B8E23",
+      "icon": "ri-rocket-line",
+      "agents": [
+        {
+          "id": "sota",
+          "name": "Sota",
+          "name_ja": "ソウタ",
+          "role": "サービス設計リード",
+          "specialty": "新サービス企画・設計",
+          "keywords": ["新サービス", "新コース", "企画", "サービス設計", "新規事業"],
+          "templates": ["事業計画書"],
+          "avatar_emoji": "🚀"
+        },
+        {
+          "id": "koharu",
+          "name": "Koharu",
+          "name_ja": "コハル",
+          "role": "顧客体験改善",
+          "specialty": "完了率・満足度改善・リテンション",
+          "keywords": ["完了率", "満足度", "改善", "リテンション", "CX", "顧客体験"],
+          "templates": [],
+          "avatar_emoji": "💡"
+        },
+        {
+          "id": "ren",
+          "name": "Ren",
+          "name_ja": "レン",
+          "role": "パートナーシップ",
+          "specialty": "業務提携・パートナー開拓",
+          "keywords": ["人材紹介", "BPO", "連携", "パートナー", "提携", "アライアンス"],
+          "templates": [],
+          "avatar_emoji": "🤝"
+        },
+        {
+          "id": "risa",
+          "name": "Risa",
+          "name_ja": "リサ",
+          "role": "プライシング戦略",
+          "specialty": "価格設定・収益モデル設計",
+          "keywords": ["価格", "料金", "収益モデル", "プライシング", "単価", "値付け"],
+          "templates": ["見積書"],
+          "avatar_emoji": "💰"
+        }
+      ]
+    },
+    {
+      "id": "content-production",
+      "folder": "03-content-production",
+      "name_ja": "コンテンツ制作部",
+      "name_en": "Content Production",
+      "mission": "集客・ブランディングのためのコンテンツ企画・制作",
+      "color": "#E4572E",
+      "icon": "ri-movie-line",
+      "agents": [
+        {
+          "id": "eito",
+          "name": "Eito",
+          "name_ja": "エイト",
+          "role": "YouTube企画",
+          "specialty": "動画企画・コンテンツ戦略",
+          "keywords": ["YouTube", "動画企画", "ネタ", "チャンネル"],
+          "templates": ["YouTube企画書"],
+          "avatar_emoji": "🎬"
+        },
+        {
+          "id": "shiori",
+          "name": "Shiori",
+          "name_ja": "シオリ",
+          "role": "ライター",
+          "specialty": "台本・原稿執筆",
+          "keywords": ["台本", "スクリプト", "原稿", "ライティング"],
+          "templates": ["YouTube台本"],
+          "avatar_emoji": "✍️"
+        },
+        {
+          "id": "hikaru",
+          "name": "Hikaru",
+          "name_ja": "ヒカル",
+          "role": "ビジュアルデザイン",
+          "specialty": "サムネイル・ビジュアル設計",
+          "keywords": ["サムネイル", "サムネ", "デザイン", "ビジュアル"],
+          "templates": [],
+          "avatar_emoji": "🎨"
+        },
+        {
+          "id": "itsuki",
+          "name": "Itsuki",
+          "name_ja": "イツキ",
+          "role": "教材設計",
+          "specialty": "カリキュラム・教材開発",
+          "keywords": ["教材", "カリキュラム", "講座設計", "研修"],
+          "templates": [],
+          "avatar_emoji": "📚"
+        },
+        {
+          "id": "hayato",
+          "name": "Hayato",
+          "name_ja": "ハヤト",
+          "role": "動画編集ディレクション",
+          "specialty": "編集指示・ポストプロダクション",
+          "keywords": ["動画編集", "編集指示", "カット", "テロップ"],
+          "templates": [],
+          "avatar_emoji": "🎞️"
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "folder": "04-marketing",
+      "name_ja": "マーケティング部",
+      "name_en": "Marketing",
+      "mission": "リード獲得からナーチャリングまでの集客全般",
+      "color": "#FF6B6B",
+      "icon": "ri-megaphone-line",
+      "agents": [
+        {
+          "id": "sho",
+          "name": "Sho",
+          "name_ja": "ショウ",
+          "role": "SNSマーケター",
+          "specialty": "X/SNS運用・投稿戦略",
+          "keywords": ["X", "Twitter", "SNS投稿", "SNS", "ポスト"],
+          "templates": ["X投稿案"],
+          "avatar_emoji": "📱"
+        },
+        {
+          "id": "akari",
+          "name": "Akari",
+          "name_ja": "アカリ",
+          "role": "PR・広報",
+          "specialty": "プレスリリース・メディアリレーション",
+          "keywords": ["プレスリリース", "広報", "PR", "メディア"],
+          "templates": ["プレスリリース"],
+          "avatar_emoji": "📰"
+        },
+        {
+          "id": "takumi",
+          "name": "Takumi",
+          "name_ja": "タクミ",
+          "role": "コピーライター",
+          "specialty": "LP・セールスコピー制作",
+          "keywords": ["LP", "ランディングページ", "コピー", "セールスライティング"],
+          "templates": [],
+          "avatar_emoji": "✨"
+        },
+        {
+          "id": "hina",
+          "name": "Hina",
+          "name_ja": "ヒナ",
+          "role": "広告運用",
+          "specialty": "広告クリエイティブ・運用最適化",
+          "keywords": ["広告", "クリエイティブ", "バナー", "リスティング", "Meta広告"],
+          "templates": [],
+          "avatar_emoji": "📊"
+        },
+        {
+          "id": "yui",
+          "name": "Yui",
+          "name_ja": "ユイ",
+          "role": "CRM・ナーチャリング",
+          "specialty": "メルマガ・LINE・ステップ配信設計",
+          "keywords": ["メルマガ", "LINE", "CRM", "ステップ配信", "ナーチャリング"],
+          "templates": [],
+          "avatar_emoji": "💌"
+        }
+      ]
+    },
+    {
+      "id": "hr",
+      "folder": "05-hr",
+      "name_ja": "人事部",
+      "name_en": "Human Resources",
+      "mission": "組織設計と人材の採用・育成",
+      "color": "#9B59B6",
+      "icon": "ri-team-line",
+      "agents": [
+        {
+          "id": "minato",
+          "name": "Minato",
+          "name_ja": "ミナト",
+          "role": "採用リード",
+          "specialty": "採用戦略・求人設計",
+          "keywords": ["採用", "求人", "リクルート", "人材募集"],
+          "templates": ["求人票"],
+          "avatar_emoji": "👥"
+        },
+        {
+          "id": "sana",
+          "name": "Sana",
+          "name_ja": "サナ",
+          "role": "面接・評価",
+          "specialty": "選考プロセス設計・評価基準",
+          "keywords": ["面接", "評価シート", "選考", "スクリーニング"],
+          "templates": [],
+          "avatar_emoji": "📝"
+        },
+        {
+          "id": "yuto",
+          "name": "Yuto",
+          "name_ja": "ユウト",
+          "role": "組織開発",
+          "specialty": "組織設計・オンボーディング・制度設計",
+          "keywords": ["組織設計", "オンボーディング", "社内制度", "組織開発"],
+          "templates": [],
+          "avatar_emoji": "🏗️"
+        }
+      ]
+    },
+    {
+      "id": "admin",
+      "folder": "06-admin",
+      "name_ja": "経営管理部",
+      "name_en": "Administration",
+      "mission": "財務・法務・コンプライアンスの管理",
+      "color": "#2C3E50",
+      "icon": "ri-building-line",
+      "agents": [
+        {
+          "id": "kento",
+          "name": "Kento",
+          "name_ja": "ケント",
+          "role": "経理",
+          "specialty": "経費管理・仕訳・勘定科目",
+          "keywords": ["経費", "勘定科目", "仕訳", "領収書", "経理"],
+          "templates": ["経費チェックリスト"],
+          "avatar_emoji": "🧮"
+        },
+        {
+          "id": "mio",
+          "name": "Mio",
+          "name_ja": "ミオ",
+          "role": "予算管理",
+          "specialty": "予算策定・予実管理・月次決算",
+          "keywords": ["予算", "予実", "月次決算", "P/L", "財務"],
+          "templates": ["月次振り返り"],
+          "avatar_emoji": "📈"
+        },
+        {
+          "id": "ritsu",
+          "name": "Ritsu",
+          "name_ja": "リツ",
+          "role": "法務",
+          "specialty": "契約書・利用規約・コンプライアンス",
+          "keywords": ["契約", "利用規約", "法務", "コンプライアンス", "規約"],
+          "templates": ["契約書"],
+          "avatar_emoji": "⚖️"
+        }
+      ]
+    },
+    {
+      "id": "research",
+      "folder": "07-research",
+      "name_ja": "リサーチ部",
+      "name_en": "Research",
+      "mission": "市場調査・技術動向・政策調査による意思決定支援",
+      "color": "#1ABC9C",
+      "icon": "ri-search-eye-line",
+      "agents": [
+        {
+          "id": "rui",
+          "name": "Rui",
+          "name_ja": "ルイ",
+          "role": "市場調査",
+          "specialty": "市場規模・業界分析・トレンド調査",
+          "keywords": ["市場調査", "業界分析", "トレンド", "マーケットリサーチ"],
+          "templates": ["競合分析レポート"],
+          "avatar_emoji": "🌐"
+        },
+        {
+          "id": "asahi",
+          "name": "Asahi",
+          "name_ja": "アサヒ",
+          "role": "技術リサーチ",
+          "specialty": "AI・技術トレンド・テクノロジー調査",
+          "keywords": ["AI", "技術トレンド", "テクノロジー", "ツール調査"],
+          "templates": [],
+          "avatar_emoji": "🤖"
+        },
+        {
+          "id": "hinata",
+          "name": "Hinata",
+          "name_ja": "ヒナタ",
+          "role": "顧客調査",
+          "specialty": "VOC収集・アンケート分析・顧客インサイト",
+          "keywords": ["受講生", "VOC", "アンケート", "顧客の声", "フィードバック"],
+          "templates": [],
+          "avatar_emoji": "👂"
+        },
+        {
+          "id": "sosuke",
+          "name": "Sosuke",
+          "name_ja": "ソウスケ",
+          "role": "政策・制度調査",
+          "specialty": "助成金・補助金・政策動向",
+          "keywords": ["助成金", "補助金", "政策", "制度", "公的支援"],
+          "templates": [],
+          "avatar_emoji": "🏛️"
+        }
+      ]
+    },
+    {
+      "id": "data-analysis",
+      "folder": "08-data-analysis",
+      "name_ja": "データ分析部",
+      "name_en": "Data Analysis",
+      "mission": "データドリブンな意思決定を支援",
+      "color": "#3498DB",
+      "icon": "ri-bar-chart-box-line",
+      "agents": [
+        {
+          "id": "shun",
+          "name": "Shun",
+          "name_ja": "シュン",
+          "role": "KPIモニタリング",
+          "specialty": "KPI設計・ダッシュボード・定点観測",
+          "keywords": ["KPI", "ダッシュボード", "モニタリング", "指標"],
+          "templates": ["KPIレポート"],
+          "avatar_emoji": "📊"
+        },
+        {
+          "id": "sakura",
+          "name": "Sakura",
+          "name_ja": "サクラ",
+          "role": "深堀り分析",
+          "specialty": "コホート分析・セグメント分析",
+          "keywords": ["コホート", "深堀り", "セグメント", "分析"],
+          "templates": [],
+          "avatar_emoji": "🔬"
+        },
+        {
+          "id": "io",
+          "name": "Io",
+          "name_ja": "イオ",
+          "role": "統計・実験",
+          "specialty": "ABテスト設計・統計検定",
+          "keywords": ["ABテスト", "検定", "統計", "実験", "有意差"],
+          "templates": [],
+          "avatar_emoji": "🧪"
+        },
+        {
+          "id": "tsumugi",
+          "name": "Tsumugi",
+          "name_ja": "ツムギ",
+          "role": "データ可視化",
+          "specialty": "グラフ・チャート・レポート可視化",
+          "keywords": ["グラフ", "可視化", "チャート", "表", "ビジュアライゼーション"],
+          "templates": ["KPIレポート"],
+          "avatar_emoji": "📉"
+        }
+      ]
+    },
+    {
+      "id": "sales",
+      "folder": "09-sales",
+      "name_ja": "営業部",
+      "name_en": "Sales",
+      "mission": "案件獲得から契約締結までの営業プロセス自動化",
+      "color": "#E67E22",
+      "icon": "ri-shake-hands-line",
+      "agents": [
+        {
+          "id": "ryota",
+          "name": "Ryota",
+          "name_ja": "リョウタ",
+          "role": "営業リード",
+          "specialty": "案件開拓・商談設計・クロージング",
+          "keywords": ["受託", "営業", "商談", "案件獲得", "クロージング"],
+          "templates": [],
+          "avatar_emoji": "🎯"
+        },
+        {
+          "id": "honoka",
+          "name": "Honoka",
+          "name_ja": "ホノカ",
+          "role": "提案書作成",
+          "specialty": "提案書・プレゼン資料作成",
+          "keywords": ["提案書", "プレゼン資料", "提案", "プレゼン"],
+          "templates": ["提案書"],
+          "avatar_emoji": "📑"
+        },
+        {
+          "id": "daiki",
+          "name": "Daiki",
+          "name_ja": "ダイキ",
+          "role": "見積・原価管理",
+          "specialty": "見積書作成・工数算定・原価管理",
+          "keywords": ["見積書", "工数", "コスト算定", "見積", "原価"],
+          "templates": ["見積書"],
+          "avatar_emoji": "🧾"
+        },
+        {
+          "id": "kai",
+          "name": "Kai",
+          "name_ja": "カイ",
+          "role": "契約管理",
+          "specialty": "契約書作成・NDA・秘密保持契約",
+          "keywords": ["契約書", "NDA", "秘密保持", "業務委託契約"],
+          "templates": ["契約書"],
+          "avatar_emoji": "📜"
+        }
+      ]
+    },
+    {
+      "id": "ma-evaluation",
+      "folder": "10-ma-evaluation",
+      "name_ja": "M&A評価部",
+      "name_en": "M&A Evaluation",
+      "mission": "事業買収・売却の評価と統合支援",
+      "color": "#8E44AD",
+      "icon": "ri-exchange-line",
+      "agents": [
+        {
+          "id": "koki",
+          "name": "Koki",
+          "name_ja": "コウキ",
+          "role": "M&A戦略",
+          "specialty": "M&A戦略立案・ターゲット選定",
+          "keywords": ["M&A", "事業承継", "買収", "売却"],
+          "templates": [],
+          "avatar_emoji": "🏢"
+        },
+        {
+          "id": "nanami",
+          "name": "Nanami",
+          "name_ja": "ナナミ",
+          "role": "バリュエーション",
+          "specialty": "企業価値算定・財務モデリング",
+          "keywords": ["バリュエーション", "企業価値", "DCF", "マルチプル"],
+          "templates": [],
+          "avatar_emoji": "💎"
+        },
+        {
+          "id": "akito",
+          "name": "Akito",
+          "name_ja": "アキト",
+          "role": "デューデリジェンス",
+          "specialty": "DD実施・リスク精査",
+          "keywords": ["デューデリジェンス", "DD", "リスク精査", "監査"],
+          "templates": [],
+          "avatar_emoji": "🔎"
+        },
+        {
+          "id": "kakeru",
+          "name": "Kakeru",
+          "name_ja": "カケル",
+          "role": "PMI・統合",
+          "specialty": "シナジー分析・PMI計画",
+          "keywords": ["シナジー", "PMI", "統合", "ポストマージャー"],
+          "templates": [],
+          "avatar_emoji": "🔗"
+        }
+      ]
+    }
+  ]
+}
