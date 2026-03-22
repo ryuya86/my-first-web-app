@@ -10,8 +10,16 @@
   <body>
     <div class="dashboard-container">
 
+      <!-- モバイル用ハンバーガー -->
+      <button class="mobile-toggle" id="mobile-toggle" aria-label="メニュー">
+        <span class="ri-menu-line"></span>
+      </button>
+
+      <!-- モバイル用オーバーレイ -->
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
       <!-- サイドバー -->
-      <aside class="sidebar">
+      <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <a href="#" class="sidebar-logo">
             <span class="ri-command-line"></span>
@@ -40,11 +48,6 @@
             <span>スキル</span>
           </a>
         </nav>
-
-        <!-- モバイル用ハンバーガー -->
-        <button class="mobile-toggle" id="mobile-toggle" aria-label="メニュー">
-          <span class="ri-menu-line"></span>
-        </button>
       </aside>
 
       <!-- メインコンテンツ -->

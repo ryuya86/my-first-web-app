@@ -110,7 +110,7 @@ ul {
   position: fixed;
   top: 12px;
   left: 12px;
-  z-index: 200;
+  z-index: 300;
   background: var(--sidebar-bg);
   color: white;
   border: none;
@@ -119,6 +119,10 @@ ul {
   height: 40px;
   font-size: 1.2rem;
   cursor: pointer;
+}
+
+.sidebar-overlay {
+  display: none;
 }
 
 /* === Main Content === */
@@ -601,10 +605,26 @@ ul {
     top: 0;
     height: 100%;
     transition: left 0.3s ease;
+    z-index: 200;
   }
 
   .sidebar.open {
     left: 0;
+  }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 150;
+  }
+
+  .sidebar-overlay.show {
+    display: block;
   }
 
   .mobile-toggle {
@@ -616,6 +636,7 @@ ul {
   .main-content {
     padding: 16px;
     padding-top: 60px;
+    width: 100%;
   }
 
   .section-title {
