@@ -22,7 +22,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -r tools/crowdworks/requirements.txt
+        run: |
+          pip install -r tools/crowdworks/requirements.txt
+          playwright install chromium
+          playwright install-deps
 
       - name: Restore seen jobs cache
         uses: actions/cache@v4
@@ -35,5 +38,9 @@ jobs:
         working-directory: tools/crowdworks
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python main.py
+          CROWDWORKS_EMAIL: ${{ secrets.CROWDWORKS_EMAIL }}
+          CROWDWORKS_PASSWORD: ${{ secrets.CROWDWORKS_PASSWORD }}
+        run: python main.py collect
