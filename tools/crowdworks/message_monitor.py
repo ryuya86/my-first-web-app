@@ -7,6 +7,7 @@ import json
 import os
 from datetime import datetime
 from playwright.async_api import async_playwright
+from smart_selector import smart_find
 
 CROWDWORKS_EMAIL = os.environ.get("CROWDWORKS_EMAIL", "")
 CROWDWORKS_PASSWORD = os.environ.get("CROWDWORKS_PASSWORD", "")

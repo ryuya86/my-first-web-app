@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 from playwright.async_api import async_playwright
+from smart_selector import smart_find
 
 CROWDWORKS_EMAIL = os.environ.get("CROWDWORKS_EMAIL", "")
 CROWDWORKS_PASSWORD = os.environ.get("CROWDWORKS_PASSWORD", "")
@@ -51,39 +52,46 @@ async def submit_proposal(job_url, proposal_text):
             await page.goto(job_url)
             await page.wait_for_load_state("networkidle")
 
-            # 3. 「応募画面へ」ボタンをクリック
-            apply_button = page.locator('a:has-text("応募画面へ"), a:has-text("この仕事に応募する")')
-            if await apply_button.count() == 0:
+            # 3. 「応募画面へ」ボタンをクリック（AI fallback付き）
+            apply_button = await smart_find(page, [
+                'a:has-text("応募画面へ")',
+                'a:has-text("この仕事に応募する")',
+                'a:has-text("応募する")',
+                'button:has-text("応募")',
+            ], purpose="案件への応募ボタン")
+            if not apply_button:
                 raise RuntimeError(f"応募ボタンが見つかりません: {job_url}")
-            await apply_button.first.click()
+            await apply_button.click()
             await page.wait_for_load_state("networkidle")
 
-            # 4. 提案文を入力
-            proposal_field = page.locator(
-                'textarea[name*="proposal"], '
-                'textarea[name*="message"], '
-                'textarea[placeholder*="提案"]'
-            )
-            if await proposal_field.count() == 0:
+            # 4. 提案文を入力（AI fallback付き）
+            proposal_field = await smart_find(page, [
+                'textarea[name*="proposal"]',
+                'textarea[name*="message"]',
+                'textarea[placeholder*="提案"]',
+                'textarea[placeholder*="メッセージ"]',
+                'textarea',
+            ], purpose="提案文・メッセージ入力欄（textarea）")
+            if not proposal_field:
                 raise RuntimeError("提案文入力欄が見つかりません")
-            await proposal_field.first.fill(proposal_text)
+            await proposal_field.fill(proposal_text)
 
-            # 5. 確認画面へ → 送信
-            confirm_button = page.locator(
-                'button:has-text("確認"), '
-                'input[type="submit"][value*="確認"]'
-            )
-            if await confirm_button.count() > 0:
-                await confirm_button.first.click()
+            # 5. 確認画面へ → 送信（AI fallback付き）
+            confirm_button = await smart_find(page, [
+                'button:has-text("確認")',
+                'input[type="submit"][value*="確認"]',
+            ], purpose="確認ボタン")
+            if confirm_button:
+                await confirm_button.click()
                 await page.wait_for_load_state("networkidle")
 
-            submit_button = page.locator(
-                'button:has-text("送信"), '
-                'button:has-text("応募する"), '
-                'input[type="submit"][value*="送信"]'
-            )
-            if await submit_button.count() > 0:
-                await submit_button.first.click()
+            submit_button = await smart_find(page, [
+                'button:has-text("送信")',
+                'button:has-text("応募する")',
+                'input[type="submit"][value*="送信"]',
+            ], purpose="送信・応募ボタン")
+            if submit_button:
+                await submit_button.click()
                 await page.wait_for_load_state("networkidle")
 
             # 6. 完了確認
