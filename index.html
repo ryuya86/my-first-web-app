@@ -1,65 +1,189 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>Dashboard</title>
-    <!-- 独自のCSSファイルの読み込み-->
+    <title>仮想チーム司令塔</title>
     <link rel="stylesheet" href="./style.css"/>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
   </head>
   <body>
     <div class="dashboard-container">
+
+      <!-- サイドバー -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <a href="#" class="sidebar-home" data-tab="home">
-            <span class="ri-home-line"></span>
-            <span>Home</span>
-            </a>
-          </div>
+          <a href="#" class="sidebar-logo">
+            <span class="ri-command-line"></span>
+            <span>司令塔</span>
+          </a>
         </div>
-      </aside>
-      <main class="main-content" id="home">
-        <!-- ホームセクション -->
-        <section class="content-section" id="home">
-          
-          <!-- ヘッダー部分 -->
-          <header class="section-header">
-            
-            <!-- プロフィールアイコンを丸く囲むための箱 -->
-            <div class="profile-circle">
-              <!-- 顔のアイコンじゃ -->
-              <span class="ri-user-smile-line"></span>
-            </div>
-            
-            <!-- セクションのタイトル -->
-            <h1 class="section-title">Welcome to Your Personal Dashboard</h1>
-            
-            <!-- セクションのサブタイトル -->
-            <p class="section-subtitle">
-              Make your daily life more convenient and enjoyable
-            </p>
+        <nav class="sidebar-nav">
+          <a href="#" class="nav-link active" data-tab="home">
+            <span class="ri-home-line"></span>
+            <span>ホーム</span>
+          </a>
+          <a href="#" class="nav-link" data-tab="org">
+            <span class="ri-organization-chart"></span>
+            <span>組織図</span>
+          </a>
+          <a href="#" class="nav-link" data-tab="simulator">
+            <span class="ri-robot-line"></span>
+            <span>アサイン</span>
+          </a>
+          <a href="#" class="nav-link" data-tab="templates">
+            <span class="ri-file-copy-line"></span>
+            <span>テンプレート</span>
+          </a>
+          <a href="#" class="nav-link" data-tab="skills">
+            <span class="ri-lightbulb-line"></span>
+            <span>スキル</span>
+          </a>
+        </nav>
 
+        <!-- モバイル用ハンバーガー -->
+        <button class="mobile-toggle" id="mobile-toggle" aria-label="メニュー">
+          <span class="ri-menu-line"></span>
+        </button>
+      </aside>
+
+      <!-- メインコンテンツ -->
+      <main class="main-content">
+
+        <!-- ホーム -->
+        <section class="content-section active" id="section-home">
+          <header class="section-header">
+            <div class="profile-circle">
+              <span class="ri-command-line"></span>
+            </div>
+            <h1 class="section-title">仮想チーム司令塔</h1>
+            <p class="section-subtitle">AI活用の受託サービス — 案件獲得から納品まで自動化</p>
           </header>
-          
-          <!-- メッセージ部分 -->
-          <div class="section-body">
-            <div class="section-description">
-              <!-- 1つ目の段落 -->
-              <p>
-                This dashboard is a tool to enrich your daily life. You can easily use essential features such as diary entries, memo management, and checking weather information.
-              </p>
-              
-              <!-- 2つ目の段落 -->
-              <p>
-                Small daily records become irreplaceable memories, and efficient task management leads to fulfilling days. Please use this as a partner that supports your everyday life.
-              </p>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="ri-building-line stat-icon"></span>
+              <div class="stat-number">10</div>
+              <div class="stat-label">部門</div>
+            </div>
+            <div class="stat-card">
+              <span class="ri-team-line stat-icon"></span>
+              <div class="stat-number">40</div>
+              <div class="stat-label">エージェント</div>
+            </div>
+            <div class="stat-card">
+              <span class="ri-file-copy-line stat-icon"></span>
+              <div class="stat-number">13</div>
+              <div class="stat-label">テンプレート</div>
+            </div>
+            <div class="stat-card">
+              <span class="ri-lightbulb-line stat-icon"></span>
+              <div class="stat-number">10</div>
+              <div class="stat-label">共通スキル</div>
             </div>
           </div>
 
+          <div class="section-body">
+            <h2 class="body-title">案件獲得自動化フロー</h2>
+            <div class="flow-steps">
+              <div class="flow-step">
+                <div class="flow-number">1</div>
+                <div class="flow-content">
+                  <h3>認知獲得</h3>
+                  <p>SNS投稿・YouTube・PRで認知を拡大</p>
+                </div>
+              </div>
+              <div class="flow-step">
+                <div class="flow-number">2</div>
+                <div class="flow-content">
+                  <h3>リード獲得</h3>
+                  <p>LP・広告・CRMでリードを獲得</p>
+                </div>
+              </div>
+              <div class="flow-step">
+                <div class="flow-number">3</div>
+                <div class="flow-content">
+                  <h3>ナーチャリング</h3>
+                  <p>ステップ配信・コンテンツで信頼構築</p>
+                </div>
+              </div>
+              <div class="flow-step">
+                <div class="flow-number">4</div>
+                <div class="flow-content">
+                  <h3>商談・提案</h3>
+                  <p>提案書・見積書を自動生成</p>
+                </div>
+              </div>
+              <div class="flow-step">
+                <div class="flow-number">5</div>
+                <div class="flow-content">
+                  <h3>契約・納品</h3>
+                  <p>契約書作成から納品まで</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
+
+        <!-- 組織図 -->
+        <section class="content-section" id="section-org">
+          <header class="section-header">
+            <h1 class="section-title">組織図</h1>
+            <p class="section-subtitle">10部門・40名のエージェント — クリックで詳細表示</p>
+          </header>
+          <div class="org-grid" id="org-grid"></div>
+        </section>
+
+        <!-- アサインシミュレーター -->
+        <section class="content-section" id="section-simulator">
+          <header class="section-header">
+            <h1 class="section-title">アサインシミュレーター</h1>
+            <p class="section-subtitle">タスクを入力すると、最適な担当者を自動で提案します</p>
+          </header>
+          <div class="simulator-box">
+            <div class="sim-input-group">
+              <input type="text" id="sim-input" class="sim-input" placeholder="例: YouTube動画の台本を書いて" />
+              <button id="sim-btn" class="sim-btn">
+                <span class="ri-search-line"></span>
+                アサイン
+              </button>
+            </div>
+            <div id="sim-result" class="sim-result">
+              <p class="sim-placeholder">タスクを入力して「アサイン」を押してください</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- テンプレート -->
+        <section class="content-section" id="section-templates">
+          <header class="section-header">
+            <h1 class="section-title">テンプレート</h1>
+            <p class="section-subtitle">13種類の業務テンプレート</p>
+          </header>
+          <div class="template-grid" id="template-grid"></div>
+        </section>
+
+        <!-- スキル -->
+        <section class="content-section" id="section-skills">
+          <header class="section-header">
+            <h1 class="section-title">共通スキル</h1>
+            <p class="section-subtitle">全エージェントが共有する10のスキルセット</p>
+          </header>
+          <div class="skill-grid" id="skill-grid"></div>
+        </section>
+
       </main>
-    </div>  
+    </div>
+
+    <!-- Agent Detail Modal -->
+    <div class="modal-overlay" id="agent-modal">
+      <div class="modal" id="agent-modal-content">
+      </div>
+      <button class="modal-close" id="modal-close">
+        <span class="ri-close-line"></span>
+      </button>
+    </div>
+
+    <script src="./app.js"></script>
   </body>
 </html>

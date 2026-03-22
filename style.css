@@ -19,7 +19,7 @@ select,
 button {
   margin: 0;
   padding: 0;
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
 }
 
 ul {
@@ -27,40 +27,660 @@ ul {
 }
 /* スタイルのリセット終了 */
 
-/* サイドバーとメインコンテンツを包むための要素のスタイルを書いてください */
-.dashboard-container{
-  display:flex; 
-  height:100vh;
+/* === Variables === */
+:root {
+  --primary: #4F7CAC;
+  --primary-light: #6B9BD2;
+  --bg: #f8f9fa;
+  --sidebar-bg: #1a1d23;
+  --sidebar-text: #a0a4b0;
+  --sidebar-active: #ffffff;
+  --card-bg: #ffffff;
+  --text: #2d3436;
+  --text-light: #636e72;
+  --border: #e9ecef;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 
-/* サイドバーに関連するスタイルを書いてください */
+/* === Layout === */
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  background: var(--bg);
+}
+
+/* === Sidebar === */
 .sidebar {
-  width: 256px; /* 横幅を256pxに */
-  background-color: #f5f5f5; /* 背景を薄い灰色に */
-  border-right: 1px solid #e0e0e0; /* 右側に境界線を引く */
-  height: 100%; /* 高さを親要素(画面)いっぱいに */
-  display: flex; /* 中の要素を柔軟に配置する準備 */
-  flex-direction: column; /* 中の要素を上から下に並べる */
-  flex-shrink: 0; /* 画面が狭くなってもこの箱は縮まないようにするおまじない */
+  width: 220px;
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 100;
 }
 
 .sidebar-header {
-  padding: 20px; /* 箱の内側に20pxの余白を作る */
-  border-bottom: 1px solid #e0e0e0; /* 下に境界線を引く */
+  padding: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-.sidebar-home {
-  font-size: 1.25rem; /* 文字を少し大きく */
-  font-weight: 600; /* 文字を少し太く */
-  color: #4f7cac; /* 文字やアイコンを水色に */
-  text-decoration: none; /* リンクの下線を消す */
-
-  display: flex; /* アイコンと文字を横に並べる準備 */
-  align-items: center; /* アイコンと文字を縦方向の中央に揃える */
-  gap: 8px; /* アイコンと文字の間に8pxの隙間をあける */
+.sidebar-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-light);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* メインコンテンツに関連するスタイルを書いてください */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 2px;
+}
 
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
 
+.nav-link:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--sidebar-active);
+}
 
+.nav-link.active {
+  background: rgba(79,124,172,0.2);
+  color: var(--primary-light);
+  font-weight: 600;
+}
+
+.mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  background: var(--sidebar-bg);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+/* === Main Content === */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+}
+
+.content-section {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.content-section.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Section Header === */
+.section-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.profile-circle {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: white;
+  font-size: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.75rem;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.section-subtitle {
+  color: var(--text-light);
+  font-size: 0.95rem;
+}
+
+/* === Stats Grid (Home) === */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+
+/* === Flow Steps (Home) === */
+.section-body {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.body-title {
+  font-size: 1.1rem;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.flow-step {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.flow-number {
+  width: 36px;
+  height: 36px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.flow-content h3 {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.flow-content p {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+/* === Org Chart === */
+.org-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.dept-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.dept-card-header {
+  color: white;
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-list {
+  padding: 8px;
+}
+
+.agent-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.agent-item:hover {
+  background: var(--bg);
+}
+
+.agent-emoji {
+  font-size: 1.4rem;
+}
+
+.agent-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agent-role {
+  font-size: 0.78rem;
+  color: var(--text-light);
+}
+
+/* === Simulator === */
+.simulator-box {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.sim-input-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.sim-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.sim-input:focus {
+  border-color: var(--primary);
+}
+
+.sim-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.sim-btn:hover {
+  background: var(--primary-light);
+}
+
+.sim-result {
+  min-height: 80px;
+}
+
+.sim-placeholder {
+  color: var(--text-light);
+  text-align: center;
+  padding: 24px;
+}
+
+.sim-assignment {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sim-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sim-note {
+  color: var(--text-light);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.sim-agent-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.sim-agent-card.support {
+  opacity: 0.85;
+}
+
+.agent-emoji-large {
+  font-size: 2rem;
+}
+
+.sim-dept {
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+
+.sim-score {
+  font-size: 0.78rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* === Templates & Skills Grid === */
+.template-grid,
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.template-card,
+.skill-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s;
+}
+
+.template-card:hover,
+.skill-card:hover {
+  transform: translateY(-2px);
+}
+
+.template-icon,
+.skill-icon {
+  font-size: 1.5rem;
+  color: var(--primary);
+  display: block;
+  margin-bottom: 10px;
+}
+
+.template-card h3,
+.skill-card h3 {
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.template-card p,
+.skill-card p {
+  font-size: 0.82rem;
+  color: var(--text-light);
+  line-height: 1.4;
+}
+
+/* === Modal === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+  animation: modalIn 0.25s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+  color: white;
+  padding: 24px;
+  text-align: center;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  margin-top: 8px;
+}
+
+.modal-header p {
+  opacity: 0.9;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-body h3 {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  margin-top: 16px;
+}
+
+.modal-body h3:first-child {
+  margin-top: 0;
+}
+
+.keyword-list,
+.template-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.keyword-tag {
+  background: rgba(79,124,172,0.1);
+  color: var(--primary);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.template-tag {
+  background: rgba(107,142,35,0.1);
+  color: #6B8E23;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.no-data {
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+
+.modal-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+}
+
+/* === Responsive === */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .org-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: -220px;
+    top: 0;
+    height: 100%;
+    transition: left 0.3s ease;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .mobile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .main-content {
+    padding: 16px;
+    padding-top: 60px;
+  }
+
+  .section-title {
+    font-size: 1.3rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-number {
+    font-size: 1.5rem;
+  }
+
+  .org-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .template-grid,
+  .skill-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+
+  .sim-input-group {
+    flex-direction: column;
+  }
+
+  .sim-btn {
+    justify-content: center;
+  }
+
+  .sim-agent-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .modal {
+    max-width: 100%;
+    margin: 10px;
+  }
+
+  .flow-steps {
+    gap: 12px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .template-grid,
+  .skill-grid {
+    grid-template-columns: 1fr;
+  }
+}
