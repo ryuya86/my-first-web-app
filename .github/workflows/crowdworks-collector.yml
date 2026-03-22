@@ -1,15 +1,27 @@
-name: CrowdWorks 案件収集
+name: CrowdWorks 自動化
 
 on:
   schedule:
-    # 毎日 9:00, 13:00, 18:00 (JST) に実行 = UTC 0:00, 4:00, 9:00
+    # 案件収集: 毎日 9:00, 13:00, 18:00 (JST)
     - cron: '0 0 * * *'
     - cron: '0 4 * * *'
     - cron: '0 9 * * *'
-  workflow_dispatch: # 手動実行も可能
+    # メッセージ巡回: 毎時 (9:00-22:00 JST = 0:00-13:00 UTC)
+    - cron: '30 0-13 * * *'
+  workflow_dispatch:
+    inputs:
+      command:
+        description: '実行コマンド'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - collect
+          - messages
 
 jobs:
-  collect-and-notify:
+  run:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,14 +39,27 @@ jobs:
           playwright install chromium
           playwright install-deps
 
-      - name: Restore seen jobs cache
+      - name: Restore cache
         uses: actions/cache@v4
         with:
-          path: tools/crowdworks/seen_jobs.json
-          key: seen-jobs-${{ github.run_id }}
-          restore-keys: seen-jobs-
+          path: |
+            tools/crowdworks/seen_jobs.json
+            tools/crowdworks/seen_messages.json
+          key: crowdworks-cache-${{ github.run_id }}
+          restore-keys: crowdworks-cache-
 
-      - name: Run collector
+      - name: Determine command
+        id: cmd
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "command=${{ inputs.command }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "30 0-13 * * *" ]; then
+            echo "command=messages" >> $GITHUB_OUTPUT
+          else
+            echo "command=all" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run
         working-directory: tools/crowdworks
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -43,4 +68,4 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CROWDWORKS_EMAIL: ${{ secrets.CROWDWORKS_EMAIL }}
           CROWDWORKS_PASSWORD: ${{ secrets.CROWDWORKS_PASSWORD }}
-        run: python main.py collect
+        run: python main.py ${{ steps.cmd.outputs.command }}
