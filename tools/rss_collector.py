@@ -46,6 +46,15 @@ SEARCH_KEYWORDS = [
 
 SEARCH_BASE_URL = "https://crowdworks.jp/public/jobs"
 
+# カテゴリ別URL（キーワード検索がSSRで動作しないため、カテゴリで取得）
+CATEGORY_IDS = [
+    (212, "データ入力"),          # データ入力・タイピング
+    (55,  "事務・カンタン作業"),    # リスト作成・データ整理含む
+    (7,   "Webシステム開発"),      # API連携・ツール開発
+    (142, "ソフトウェア開発"),      # 業務自動化・スクリプト
+    (9,   "HP制作・LP"),          # Web制作
+]
+
 ACCEPT_KEYWORDS = [
     "データ入力", "リスト作成", "転記", "データ整理",
     "スクレイピング", "クローリング", "データ収集",
@@ -100,30 +109,21 @@ def save_seen_jobs(seen, path=None):
         json.dump(seen, f, ensure_ascii=False, indent=2)
 
 
-def fetch_jobs_for_keyword(keyword):
-    """検索ページのHTML埋め込みJSONから案件を取得"""
-    url = f"{SEARCH_BASE_URL}?keyword={urllib.parse.quote(keyword)}"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-
-    try:
-        raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
-    except Exception as e:
-        print(f"  [WARN] {keyword}: 取得失敗 ({e})", file=sys.stderr)
-        return []
-
-    decoded = htmlmod.unescape(raw)
+def _extract_jobs_from_html(raw_html, source_label):
+    """HTMLからJSON埋め込みの案件データを抽出"""
+    decoded = htmlmod.unescape(raw_html)
 
     match = re.search(r'"job_offers":(\[.*?\]),"pr_diamond"', decoded, re.DOTALL)
     if not match:
         match = re.search(r'"job_offers":(\[.*?\]),"pr_', decoded, re.DOTALL)
     if not match:
-        print(f"  [WARN] {keyword}: JSON抽出失敗", file=sys.stderr)
+        print(f"  [WARN] {source_label}: JSON抽出失敗", file=sys.stderr)
         return []
 
     try:
         raw_jobs = json.loads(match.group(1))
     except json.JSONDecodeError as e:
-        print(f"  [WARN] {keyword}: JSONパース失敗 ({e})", file=sys.stderr)
+        print(f"  [WARN] {source_label}: JSONパース失敗 ({e})", file=sys.stderr)
         return []
 
     jobs = []
@@ -132,7 +132,6 @@ def fetch_jobs_for_keyword(keyword):
         payment = item.get("payment", {})
         entry = item.get("entry", {}).get("project_entry", {})
 
-        # 報酬情報を抽出
         budget_min = None
         budget_max = None
         if "fixed_price_payment" in payment:
@@ -151,13 +150,41 @@ def fetch_jobs_for_keyword(keyword):
             "summary": jo.get("description_digest", ""),
             "published": jo.get("last_released_at", ""),
             "expired_on": jo.get("expired_on", ""),
-            "search_keyword": keyword,
+            "search_keyword": source_label,
             "budget_min": budget_min,
             "budget_max": budget_max,
             "num_applications": entry.get("num_application_conditions", 0),
         })
 
     return jobs
+
+
+def fetch_jobs_by_category(cat_id, cat_name):
+    """カテゴリ別ページから案件を取得"""
+    url = f"{SEARCH_BASE_URL}/category/{cat_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+
+    try:
+        raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
+    except Exception as e:
+        print(f"  [WARN] {cat_name}: 取得失敗 ({e})", file=sys.stderr)
+        return []
+
+    return _extract_jobs_from_html(raw, cat_name)
+
+
+def fetch_jobs_for_keyword(keyword):
+    """キーワード検索ページから案件を取得（フォールバック用）"""
+    url = f"{SEARCH_BASE_URL}?keyword={urllib.parse.quote(keyword)}"
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+
+    try:
+        raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
+    except Exception as e:
+        print(f"  [WARN] {keyword}: 取得失敗 ({e})", file=sys.stderr)
+        return []
+
+    return _extract_jobs_from_html(raw, keyword)
 
 
 def passes_filter(job):
@@ -195,8 +222,9 @@ def collect_jobs(seen_path=None):
     all_jobs = []
     seen_ids = set()
 
-    for i, keyword in enumerate(SEARCH_KEYWORDS):
-        jobs = fetch_jobs_for_keyword(keyword)
+    # 1. カテゴリ別で取得（メイン）
+    for i, (cat_id, cat_name) in enumerate(CATEGORY_IDS):
+        jobs = fetch_jobs_by_category(cat_id, cat_name)
         for job in jobs:
             job_id = job["id"]
             if job_id in seen or job_id in seen_ids:
@@ -205,9 +233,7 @@ def collect_jobs(seen_path=None):
                 job["category"] = classify_job(job)
                 all_jobs.append(job)
                 seen_ids.add(job_id)
-
-        # レート制限対策
-        if i < len(SEARCH_KEYWORDS) - 1:
+        if i < len(CATEGORY_IDS) - 1:
             time.sleep(1)
 
     now = datetime.now().isoformat()
