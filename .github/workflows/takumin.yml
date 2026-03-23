@@ -106,6 +106,7 @@ jobs:
           TASK="${{ steps.task.outputs.name }}"
           echo "=== たくみん起動: ${TASK} ==="
           claude -p \
+            --model "anthropic/claude-sonnet-4-6" \
             --allowedTools "Bash,Read,Write,Glob,Grep" \
             --max-turns 25 \
             "soul.md の行動原則に従い、commands/${TASK}.md のタスクを実行してください。"
