@@ -1,0 +1,7 @@
+feedparser>=6.0
+anthropic>=0.40.0
+requests>=2.31
+slack-bolt>=1.18
+slack-sdk>=3.27
+playwright>=1.40
+python-dotenv>=1.0

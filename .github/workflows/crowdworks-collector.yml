@@ -1,0 +1,128 @@
+name: CrowdWorks 自動化
+
+on:
+  schedule:
+    # 朝のブリーフィング: 毎日 7:00 JST = 22:00 UTC (前日)
+    - cron: '0 22 * * *'
+    # 案件収集+メッセージ: 毎日 9:00, 13:00, 18:00 (JST)
+    - cron: '0 0 * * *'
+    - cron: '0 4 * * *'
+    - cron: '0 9 * * *'
+    # メッセージ巡回+遅延アラート: 毎時 (9:00-22:00 JST = 0:00-13:00 UTC)
+    - cron: '30 0-13 * * *'
+    # 週次レポート: 毎週月曜 10:00 JST
+    - cron: '0 1 * * 1'
+    # 月次レポート: 毎月1日 10:00 JST
+    - cron: '0 1 1 * *'
+    # 夕方のサマリー: 毎日 22:00 JST = 13:00 UTC
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      command:
+        description: '実行コマンド'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - collect
+          - messages
+          - alerts
+          - report
+          - monthly
+          - morning
+          - evening
+          - health
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r tools/crowdworks/requirements.txt
+          playwright install chromium
+          playwright install-deps
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            tools/crowdworks/seen_jobs.json
+            tools/crowdworks/seen_messages.json
+            tools/crowdworks/crowdworks_history.db
+            tools/crowdworks/health_log.json
+          key: crowdworks-cache-${{ github.run_id }}
+          restore-keys: crowdworks-cache-
+
+      - name: Determine command
+        id: cmd
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "command=${{ inputs.command }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
+            echo "command=morning" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 13 * * *" ]; then
+            echo "command=evening" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 1 * * 1" ]; then
+            echo "command=report" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 1 1 * *" ]; then
+            echo "command=monthly" >> $GITHUB_OUTPUT
+          elif echo "${{ github.event.schedule }}" | grep -q "^30 "; then
+            echo "command=messages" >> $GITHUB_OUTPUT
+          else
+            echo "command=all" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run pipeline
+        working-directory: tools/crowdworks
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL || '' }}
+          CROWDWORKS_EMAIL: ${{ secrets.CROWDWORKS_EMAIL }}
+          CROWDWORKS_PASSWORD: ${{ secrets.CROWDWORKS_PASSWORD }}
+          CW_MIN_MATCH_SCORE: ${{ vars.CW_MIN_MATCH_SCORE || '40' }}
+          CW_REPLY_ALERT_HOURS: ${{ vars.CW_REPLY_ALERT_HOURS || '2' }}
+          CW_AUTO_APPLY_ENABLED: ${{ vars.CW_AUTO_APPLY_ENABLED || 'false' }}
+          CW_AUTO_APPLY_MIN_SCORE: ${{ vars.CW_AUTO_APPLY_MIN_SCORE || '85' }}
+          CW_AUTO_APPLY_MAX_COMPETITORS: ${{ vars.CW_AUTO_APPLY_MAX_COMPETITORS || '20' }}
+        run: python main.py ${{ steps.cmd.outputs.command }}
+
+      - name: Run delay alerts (hourly runs only)
+        if: contains(github.event.schedule, '30 ')
+        working-directory: tools/crowdworks
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CW_REPLY_ALERT_HOURS: ${{ vars.CW_REPLY_ALERT_HOURS || '2' }}
+        run: python main.py alerts
+
+      - name: Notify on failure
+        if: failure()
+        working-directory: tools/crowdworks
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+        run: |
+          python -c "
+          from slack_sdk import WebClient
+          import os
+          client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
+          client.chat_postMessage(
+              channel=os.environ.get('SLACK_CHANNEL', '#案件通知'),
+              text='🚨 *GitHub Actions 実行失敗*\nワークフロー: CrowdWorks自動化\nコマンド: ${{ steps.cmd.outputs.command }}\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|ログを確認>',
+          )
+          "
