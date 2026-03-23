@@ -70,9 +70,8 @@ def send_job_found(data):
 
     score_icon = "🟢" if score >= 80 else "🟡" if score >= 60 else "🟠" if score >= 40 else "🔴"
 
-    # 応募キューに追加（提案文がある場合のみ）
-    if proposal:
-        _add_to_apply_queue(data)
+    # 応募キューに追加
+    _add_to_apply_queue(data)
 
     # GitHub Actions手動実行URL
     apply_url = f"https://github.com/{GITHUB_REPO}/actions/workflows/takumin.yml"
@@ -85,23 +84,13 @@ def send_job_found(data):
         ]},
         {"type": "section", "text": {"type": "mrkdwn", "text": f"*概要:*\n{summary}"}},
         {"type": "actions", "elements": [
+            {"type": "button", "text": {"type": "plain_text", "text": "✅ 応募する"}, "url": apply_url, "style": "primary"},
             {"type": "button", "text": {"type": "plain_text", "text": "📄 案件を見る"}, "url": url},
         ]},
-        {"type": "divider"},
+        {"type": "context", "elements": [
+            {"type": "mrkdwn", "text": "💡 「応募する」→ task: `browse-and-apply` を実行 → 提案文自動生成＆応募"},
+        ]},
     ]
-
-    if proposal:
-        blocks.append({"type": "section", "text": {
-            "type": "mrkdwn",
-            "text": f"*📝 提案文:*\n```\n{proposal}\n```",
-        }})
-        blocks.append({"type": "actions", "elements": [
-            {"type": "button", "text": {"type": "plain_text", "text": "✅ 応募する"}, "url": apply_url, "style": "primary"},
-            {"type": "button", "text": {"type": "plain_text", "text": "❌ スキップ"}, "url": url},
-        ]})
-        blocks.append({"type": "context", "elements": [
-            {"type": "mrkdwn", "text": f"💡 「応募する」→ GitHub Actionsで `browse-and-apply` を実行してください"},
-        ]})
 
     client.chat_postMessage(channel=CHANNEL, blocks=blocks, text=f"新着案件: {title}")
     print(f"[Slack] job_found 送信完了: {title[:50]}")
