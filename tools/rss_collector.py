@@ -45,7 +45,17 @@ REJECT_KEYWORDS = [
     "常駐", "出社必須", "フル稼働必須",
     "18禁", "アダルト", "ギャンブル",
     "マルチ", "情報商材",
+    # 地理的制約
+    "在住の方", "在住者", "在住限定",
+    "カナダ在住", "香港在住", "アメリカ在住", "海外在住",
+    "韓国在住", "中国在住", "台湾在住",
+    # 低単価タスク
+    "アンケート", "モニター", "レビュー投稿", "体験談",
+    "口コミ", "感想文",
 ]
+
+# 報酬が低すぎるタスク案件を除外する閾値
+MIN_BUDGET_THRESHOLD = 1000  # 1,000円未満は除外
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -138,6 +148,10 @@ def passes_filter(job):
     if any(kw.lower() in text for kw in REJECT_KEYWORDS):
         return False
     if not any(kw.lower() in text for kw in ACCEPT_KEYWORDS):
+        return False
+    # 低単価タスク除外（max_budgetが設定されていて閾値未満）
+    max_budget = job.get("budget_max")
+    if max_budget is not None and 0 < max_budget < MIN_BUDGET_THRESHOLD:
         return False
     return True
 
