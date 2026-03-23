@@ -15,11 +15,12 @@ LOGIN_URL = "https://crowdworks.jp/login"
 
 async def login(page):
     """CrowdWorksにログイン"""
-    await page.goto(LOGIN_URL)
+    await page.goto(LOGIN_URL, timeout=30000)
     await page.fill('input[name="username"]', CROWDWORKS_EMAIL)
     await page.fill('input[name="password"]', CROWDWORKS_PASSWORD)
     await page.click('button[type="submit"]')
-    await page.wait_for_load_state("networkidle")
+    await page.wait_for_load_state("domcontentloaded")
+    await page.wait_for_timeout(2000)
 
     # ログイン成功確認
     if "login" in page.url:
@@ -49,8 +50,9 @@ async def submit_proposal(job_url, proposal_text):
             await login(page)
 
             # 2. 案件ページへ移動
-            await page.goto(job_url)
-            await page.wait_for_load_state("networkidle")
+            await page.goto(job_url, timeout=30000)
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(2000)
 
             # 3. 「応募画面へ」ボタンをクリック（AI fallback付き）
             apply_button = await smart_find(page, [
@@ -62,7 +64,8 @@ async def submit_proposal(job_url, proposal_text):
             if not apply_button:
                 raise RuntimeError(f"応募ボタンが見つかりません: {job_url}")
             await apply_button.click()
-            await page.wait_for_load_state("networkidle")
+            await page.wait_for_load_state("domcontentloaded")
+            await page.wait_for_timeout(2000)
 
             # 4. 提案文を入力（AI fallback付き）
             proposal_field = await smart_find(page, [
@@ -83,7 +86,8 @@ async def submit_proposal(job_url, proposal_text):
             ], purpose="確認ボタン")
             if confirm_button:
                 await confirm_button.click()
-                await page.wait_for_load_state("networkidle")
+                await page.wait_for_load_state("domcontentloaded")
+                await page.wait_for_timeout(2000)
 
             submit_button = await smart_find(page, [
                 'button:has-text("送信")',
@@ -92,7 +96,8 @@ async def submit_proposal(job_url, proposal_text):
             ], purpose="送信・応募ボタン")
             if submit_button:
                 await submit_button.click()
-                await page.wait_for_load_state("networkidle")
+                await page.wait_for_load_state("domcontentloaded")
+                await page.wait_for_timeout(2000)
 
             # 6. 完了確認
             success_indicators = [
@@ -109,8 +114,8 @@ async def submit_proposal(job_url, proposal_text):
                 return {"success": True, "message": "応募完了（URL確認）"}
 
             return {
-                "success": True,
-                "message": "送信処理完了（完了メッセージ未検出のため要確認）",
+                "success": False,
+                "message": "送信処理完了したが完了メッセージを検出できず（要手動確認）",
             }
 
         except Exception as e:

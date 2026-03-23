@@ -5,7 +5,7 @@ CrowdWorksメッセージ監視モジュール — 新着メッセージを取�
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from playwright.async_api import async_playwright
 from smart_selector import smart_find
 
@@ -25,25 +25,30 @@ def load_seen_messages():
 
 
 def save_seen_messages(seen):
+    # 7日以上前のエントリを削除
+    cutoff = (datetime.now() - timedelta(days=7)).isoformat()
+    cleaned = {k: v for k, v in seen.items() if v > cutoff}
     with open(SEEN_MESSAGES_FILE, "w") as f:
-        json.dump(seen, f, ensure_ascii=False, indent=2)
+        json.dump(cleaned, f, ensure_ascii=False, indent=2)
 
 
 async def _login(page):
     """CrowdWorksにログイン"""
-    await page.goto(LOGIN_URL)
+    await page.goto(LOGIN_URL, timeout=30000)
     await page.fill('input[name="username"]', CROWDWORKS_EMAIL)
     await page.fill('input[name="password"]', CROWDWORKS_PASSWORD)
     await page.click('button[type="submit"]')
-    await page.wait_for_load_state("networkidle")
+    await page.wait_for_load_state("domcontentloaded")
+    await page.wait_for_timeout(2000)
     if "login" in page.url:
         raise RuntimeError("CrowdWorksログイン失敗")
 
 
 async def _fetch_thread_list(page):
     """メッセージ一覧からスレッド情報を取得"""
-    await page.goto(MESSAGES_URL)
-    await page.wait_for_load_state("networkidle")
+    await page.goto(MESSAGES_URL, timeout=30000)
+    await page.wait_for_load_state("domcontentloaded")
+    await page.wait_for_timeout(2000)
 
     threads = await page.evaluate("""
         () => {
@@ -80,8 +85,9 @@ async def _fetch_thread_list(page):
 
 async def _fetch_thread_messages(page, thread_url, max_messages=20):
     """個別スレッドのメッセージ履歴を取得"""
-    await page.goto(thread_url)
-    await page.wait_for_load_state("networkidle")
+    await page.goto(thread_url, timeout=30000)
+    await page.wait_for_load_state("domcontentloaded")
+    await page.wait_for_timeout(2000)
 
     messages = await page.evaluate("""
         (max) => {

@@ -120,9 +120,9 @@ def run_collect():
             proposal = _generate_proposal_with_retry(job)
         except Exception as e:
             error_msg = f"提案文生成エラー [{job['title'][:30]}]: {e}"
-            print(f"  → {error_msg}")
+            print(f"  → {error_msg} → スキップします")
             errors.append(error_msg)
-            proposal = "（提案文の自動生成に失敗しました。案件ページを確認の上、手動で作成してください。）"
+            continue
 
         # DB記録
         try:

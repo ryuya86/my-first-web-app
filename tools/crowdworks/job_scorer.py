@@ -5,6 +5,7 @@
 import anthropic
 import json
 import os
+import re
 
 MODEL = "claude-haiku-4-5-20251001"
 
@@ -76,10 +77,9 @@ def score_job(job: dict) -> dict:
     response_text = message.content[0].text.strip()
 
     # JSONを抽出（```json ... ``` で囲まれている場合も対応）
-    if "```" in response_text:
-        json_str = response_text.split("```")[1]
-        if json_str.startswith("json"):
-            json_str = json_str[4:]
+    code_block = re.search(r'```(?:json)?\s*(.*?)\s*```', response_text, re.DOTALL)
+    if code_block:
+        json_str = code_block.group(1)
     else:
         json_str = response_text
 
