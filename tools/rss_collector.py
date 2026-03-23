@@ -25,11 +25,20 @@ SEARCH_KEYWORDS = [
     "Slack bot",
     "API連携",
     "Gmail API",
+    # AIで自動化しやすい業務
+    "データ入力",
+    "商品登録",
+    "リスト作成",
+    "CSV作成",
+    "データ抽出",
+    "PDF処理",
+    "請求書作成",
+    "メール自動送信",
     # 関連スキル
     "スプレッドシート 自動化",
     "業務自動化",
-    "データ入力",
     "Excel VBA",
+    "ツール開発",
     # Web系
     "LP制作",
     "WordPress",
@@ -168,10 +177,11 @@ def passes_filter(job):
 def classify_job(job):
     text = f"{job['title']} {job['summary']}".lower()
     categories = [
+        ("scraping", ["スクレイピング", "クローリング", "データ抽出", "データ収集"]),
+        ("automation", ["gas", "google apps script", "スプレッドシート", "vba", "マクロ", "自動化", "rpa"]),
+        ("development", ["python", "ツール開発", "api", "bot", "webhook"]),
         ("data_entry", ["データ入力", "転記", "リスト", "商品登録", "csv", "excel"]),
-        ("scraping", ["スクレイピング", "クローリング", "データ収集"]),
-        ("automation", ["gas", "google apps script", "スプレッドシート", "vba", "マクロ"]),
-        ("development", ["python", "自動化", "ツール開発", "api"]),
+        ("document", ["pdf", "請求書", "書類作成", "テンプレート", "メール作成"]),
         ("web_design", ["lp", "ランディング", "wordpress", "web制作", "html", "コーディング"]),
     ]
     for cat, keywords in categories:

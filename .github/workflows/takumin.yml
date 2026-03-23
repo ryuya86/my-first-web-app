@@ -68,8 +68,8 @@ jobs:
       - name: Install Python dependencies
         run: pip install feedparser slack-sdk
 
-      - name: Install Playwright (browser tasks only)
-        if: steps.task.outputs.name == 'check-messages' || steps.task.outputs.name == 'browse-and-apply'
+      - name: Install Playwright (browser tasks)
+        if: steps.task.outputs.name == 'check-messages' || steps.task.outputs.name == 'browse-and-apply' || steps.task.outputs.name == 'collect-jobs'
         run: |
           pip install playwright
           playwright install chromium
