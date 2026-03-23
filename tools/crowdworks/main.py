@@ -22,6 +22,10 @@ CrowdWorks自動化パイプライン — 全機能統合版
 import os
 import sys
 import time
+from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / ".env")
 
 from job_collector import collect_jobs
 from proposal_generator import generate_proposal
