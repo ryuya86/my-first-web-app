@@ -145,14 +145,15 @@ def fetch_jobs_for_keyword(keyword):
 
 def passes_filter(job):
     text = f"{job['title']} {job['summary']}".lower()
+    # REJECTキーワードに該当する場合は除外
     if any(kw.lower() in text for kw in REJECT_KEYWORDS):
-        return False
-    if not any(kw.lower() in text for kw in ACCEPT_KEYWORDS):
         return False
     # 低単価タスク除外（max_budgetが設定されていて閾値未満）
     max_budget = job.get("budget_max")
     if max_budget is not None and 0 < max_budget < MIN_BUDGET_THRESHOLD:
         return False
+    # 検索キーワードで既にマッチしているため、ACCEPTフィルタは不要
+    # （スコアリングでスキルマッチを評価する）
     return True
 
 
