@@ -48,7 +48,7 @@ async def _scrape_client_profile(client_url: str) -> dict:
         )
 
         try:
-            await page.goto(client_url, wait_until="networkidle")
+            await page.goto(client_url, wait_until="domcontentloaded", timeout=60000)
 
             profile = await page.evaluate("""
                 () => {

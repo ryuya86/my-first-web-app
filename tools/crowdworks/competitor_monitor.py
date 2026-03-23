@@ -10,7 +10,7 @@ from playwright.async_api import async_playwright
 async def _fetch_applicant_count(page, job_url: str) -> dict:
     """案件ページから応募者数を取得"""
     try:
-        await page.goto(job_url, wait_until="networkidle")
+        await page.goto(job_url, wait_until="domcontentloaded", timeout=60000)
 
         data = await page.evaluate("""
             () => {

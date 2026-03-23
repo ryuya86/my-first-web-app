@@ -31,19 +31,19 @@ def save_seen_messages(seen):
 
 async def _login(page):
     """CrowdWorksにログイン"""
-    await page.goto(LOGIN_URL)
+    await page.goto(LOGIN_URL, timeout=60000)
     await page.fill('input[name="username"]', CROWDWORKS_EMAIL)
     await page.fill('input[name="password"]', CROWDWORKS_PASSWORD)
     await page.click('button[type="submit"]')
-    await page.wait_for_load_state("networkidle")
+    await page.wait_for_load_state("domcontentloaded")
     if "login" in page.url:
         raise RuntimeError("CrowdWorksログイン失敗")
 
 
 async def _fetch_thread_list(page):
     """メッセージ一覧からスレッド情報を取得"""
-    await page.goto(MESSAGES_URL)
-    await page.wait_for_load_state("networkidle")
+    await page.goto(MESSAGES_URL, timeout=60000)
+    await page.wait_for_load_state("domcontentloaded")
 
     threads = await page.evaluate("""
         () => {
@@ -80,8 +80,8 @@ async def _fetch_thread_list(page):
 
 async def _fetch_thread_messages(page, thread_url, max_messages=20):
     """個別スレッドのメッセージ履歴を取得"""
-    await page.goto(thread_url)
-    await page.wait_for_load_state("networkidle")
+    await page.goto(thread_url, timeout=60000)
+    await page.wait_for_load_state("domcontentloaded")
 
     messages = await page.evaluate("""
         (max) => {

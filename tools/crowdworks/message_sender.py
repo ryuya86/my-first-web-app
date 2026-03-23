@@ -12,11 +12,11 @@ LOGIN_URL = "https://crowdworks.jp/login"
 
 
 async def _login(page):
-    await page.goto(LOGIN_URL)
+    await page.goto(LOGIN_URL, timeout=60000)
     await page.fill('input[name="username"]', CROWDWORKS_EMAIL)
     await page.fill('input[name="password"]', CROWDWORKS_PASSWORD)
     await page.click('button[type="submit"]')
-    await page.wait_for_load_state("networkidle")
+    await page.wait_for_load_state("domcontentloaded")
     if "login" in page.url:
         raise RuntimeError("CrowdWorksログイン失敗")
 
@@ -36,8 +36,8 @@ async def _send_message(thread_url, reply_text):
 
         try:
             await _login(page)
-            await page.goto(thread_url)
-            await page.wait_for_load_state("networkidle")
+            await page.goto(thread_url, timeout=60000)
+            await page.wait_for_load_state("domcontentloaded")
 
             # メッセージ入力欄を検索
             textarea = page.locator(
@@ -71,7 +71,7 @@ async def _send_message(thread_url, reply_text):
                 raise RuntimeError("送信ボタンが見つかりません")
 
             await send_button.first.click()
-            await page.wait_for_load_state("networkidle")
+            await page.wait_for_load_state("domcontentloaded")
 
             # 送信確認
             # 送信後にエラーが表示されていないか確認
