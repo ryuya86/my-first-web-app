@@ -1,17 +1,19 @@
 """
-CrowdWorks RSS案件収集 — RSSフィードから案件を取得・フィルタリング・JSON出力
+CrowdWorks案件収集 — 検索ページのJSON埋め込みデータから案件を取得・フィルタリング
 
 Usage:
   python tools/rss_collector.py              → 新着案件をJSON出力
   python tools/rss_collector.py --seen FILE  → seen_jobs.jsonのパスを指定
 """
 
-import feedparser
+import html as htmlmod
 import json
 import os
 import re
 import sys
+import time
 import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta
 
 SEARCH_KEYWORDS = [
@@ -25,7 +27,7 @@ SEARCH_KEYWORDS = [
     "Excel VBA",
 ]
 
-RSS_BASE_URL = "https://crowdworks.jp/public/jobs/search.rss"
+SEARCH_BASE_URL = "https://crowdworks.jp/public/jobs"
 
 ACCEPT_KEYWORDS = [
     "データ入力", "リスト作成", "転記", "データ整理",
@@ -44,6 +46,12 @@ REJECT_KEYWORDS = [
     "18禁", "アダルト", "ギャンブル",
     "マルチ", "情報商材",
 ]
+
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
 
 SEEN_JOBS_FILE = os.path.join(os.path.dirname(__file__), "..", "state", "seen_jobs.json")
 
@@ -66,34 +74,63 @@ def save_seen_jobs(seen, path=None):
 
 
 def fetch_jobs_for_keyword(keyword):
-    params = urllib.parse.urlencode({"keyword": keyword})
-    url = f"{RSS_BASE_URL}?{params}"
-    feed = feedparser.parse(url)
+    """検索ページのHTML埋め込みJSONから案件を取得"""
+    url = f"{SEARCH_BASE_URL}?keyword={urllib.parse.quote(keyword)}"
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+
+    try:
+        raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8")
+    except Exception as e:
+        print(f"  [WARN] {keyword}: 取得失敗 ({e})", file=sys.stderr)
+        return []
+
+    decoded = htmlmod.unescape(raw)
+
+    match = re.search(r'"job_offers":(\[.*?\]),"pr_diamond"', decoded, re.DOTALL)
+    if not match:
+        match = re.search(r'"job_offers":(\[.*?\]),"pr_', decoded, re.DOTALL)
+    if not match:
+        print(f"  [WARN] {keyword}: JSON抽出失敗", file=sys.stderr)
+        return []
+
+    try:
+        raw_jobs = json.loads(match.group(1))
+    except json.JSONDecodeError as e:
+        print(f"  [WARN] {keyword}: JSONパース失敗 ({e})", file=sys.stderr)
+        return []
+
     jobs = []
-    for entry in feed.entries:
+    for item in raw_jobs:
+        jo = item.get("job_offer", {})
+        payment = item.get("payment", {})
+        entry = item.get("entry", {}).get("project_entry", {})
+
+        # 報酬情報を抽出
+        budget_min = None
+        budget_max = None
+        if "fixed_price_payment" in payment:
+            fp = payment["fixed_price_payment"]
+            budget_min = fp.get("min_budget")
+            budget_max = fp.get("max_budget")
+        elif "hourly_payment" in payment:
+            hp = payment["hourly_payment"]
+            budget_min = hp.get("min_hourly_wage")
+            budget_max = hp.get("max_hourly_wage")
+
         jobs.append({
-            "id": entry.get("id", entry.link),
-            "title": entry.get("title", ""),
-            "url": entry.get("link", ""),
-            "summary": entry.get("summary", ""),
-            "published": entry.get("published", ""),
+            "id": str(jo.get("id", "")),
+            "title": jo.get("title", ""),
+            "url": f"https://crowdworks.jp/public/jobs/{jo.get('id', '')}",
+            "summary": jo.get("description_digest", ""),
+            "published": jo.get("last_released_at", ""),
+            "expired_on": jo.get("expired_on", ""),
             "search_keyword": keyword,
+            "budget_min": budget_min,
+            "budget_max": budget_max,
+            "num_applications": entry.get("num_application_conditions", 0),
         })
+
     return jobs
-
-
-def extract_budget(text):
-    patterns = [
-        (r"(\d{1,3}(?:,\d{3})*)\s*円", False),
-        (r"¥\s*(\d{1,3}(?:,\d{3})*)", False),
-        (r"(\d+)\s*万円", True),
-    ]
-    for pattern, is_man in patterns:
-        match = re.search(pattern, text)
-        if match:
-            value = int(match.group(1).replace(",", ""))
-            return value * 10000 if is_man else value
-    return None
 
 
 def passes_filter(job):
@@ -125,7 +162,7 @@ def collect_jobs(seen_path=None):
     all_jobs = []
     seen_ids = set()
 
-    for keyword in SEARCH_KEYWORDS:
+    for i, keyword in enumerate(SEARCH_KEYWORDS):
         jobs = fetch_jobs_for_keyword(keyword)
         for job in jobs:
             job_id = job["id"]
@@ -133,10 +170,12 @@ def collect_jobs(seen_path=None):
                 continue
             if passes_filter(job):
                 job["category"] = classify_job(job)
-                budget = extract_budget(f"{job['title']} {job['summary']}")
-                job["budget"] = budget
                 all_jobs.append(job)
                 seen_ids.add(job_id)
+
+        # レート制限対策
+        if i < len(SEARCH_KEYWORDS) - 1:
+            time.sleep(1)
 
     now = datetime.now().isoformat()
     for job in all_jobs:
