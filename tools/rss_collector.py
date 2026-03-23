@@ -17,14 +17,22 @@ import urllib.request
 from datetime import datetime, timedelta
 
 SEARCH_KEYWORDS = [
-    "データ入力",
+    # コアスキル（ポートフォリオ直結）
+    "GAS 開発",
+    "Google Apps Script",
     "スクレイピング",
     "Python 自動化",
-    "GAS 開発",
+    "Slack bot",
+    "API連携",
+    "Gmail API",
+    # 関連スキル
+    "スプレッドシート 自動化",
+    "業務自動化",
+    "データ入力",
+    "Excel VBA",
+    # Web系
     "LP制作",
     "WordPress",
-    "業務自動化",
-    "Excel VBA",
 ]
 
 SEARCH_BASE_URL = "https://crowdworks.jp/public/jobs"
