@@ -1,0 +1,126 @@
+name: たくみん
+
+on:
+  schedule:
+    # 朝のブリーフィング: 7:00 JST = 22:00 UTC (前日)
+    - cron: '0 22 * * *'
+    # 案件収集: 9:00, 13:00, 18:00 JST
+    - cron: '0 0 * * *'
+    - cron: '0 4 * * *'
+    - cron: '0 9 * * *'
+    # メッセージ巡回: 3時間おき (9:00-21:00 JST = 0:00-12:00 UTC)
+    - cron: '30 0,3,6,9,12 * * *'
+    # 夕方のサマリー: 22:00 JST = 13:00 UTC
+    - cron: '0 13 * * *'
+    # 週次レポート: 毎週月曜 10:00 JST = 01:00 UTC
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'タスク名'
+        required: true
+        default: 'collect-jobs'
+        type: choice
+        options:
+          - collect-jobs
+          - check-messages
+          - morning-briefing
+          - evening-summary
+          - weekly-report
+          - health-check
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Determine task
+        id: task
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.task }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
+            echo "name=morning-briefing" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 13 * * *" ]; then
+            echo "name=evening-summary" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 1 * * 1" ]; then
+            echo "name=weekly-report" >> $GITHUB_OUTPUT
+          elif echo "${{ github.event.schedule }}" | grep -q "^30 "; then
+            echo "name=check-messages" >> $GITHUB_OUTPUT
+          else
+            echo "name=collect-jobs" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Python dependencies
+        run: pip install feedparser slack-sdk
+
+      - name: Install Playwright (browser tasks only)
+        if: steps.task.outputs.name == 'check-messages' || steps.task.outputs.name == 'browse-and-apply'
+        run: |
+          pip install playwright
+          playwright install chromium
+          playwright install-deps
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: state/
+          key: takumin-state-${{ github.run_id }}
+          restore-keys: takumin-state-
+
+      - name: Initialize state
+        run: |
+          mkdir -p state
+          [ -f state/seen_jobs.json ] || echo '{}' > state/seen_jobs.json
+          [ -f state/seen_messages.json ] || echo '{}' > state/seen_messages.json
+
+      - name: Initialize DB
+        run: python tools/db.py init
+
+      - name: Run たくみん
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL || 'https://openrouter.ai/api/v1' }}
+          CROWDWORKS_EMAIL: ${{ secrets.CROWDWORKS_EMAIL }}
+          CROWDWORKS_PASSWORD: ${{ secrets.CROWDWORKS_PASSWORD }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+        run: |
+          TASK="${{ steps.task.outputs.name }}"
+          echo "=== たくみん起動: ${TASK} ==="
+          claude -p \
+            --allowedTools "Bash,Read,Write,Glob,Grep" \
+            --max-turns 25 \
+            "soul.md の行動原則に従い、commands/${TASK}.md のタスクを実行してください。"
+
+      - name: Save state
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: state/
+          key: takumin-state-${{ github.run_id }}
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+        run: |
+          python tools/slack_notify.py error "{\"task\":\"${{ steps.task.outputs.name }}\",\"error\":\"GitHub Actions実行失敗\",\"run_url\":\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
