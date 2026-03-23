@@ -23,6 +23,7 @@ on:
         type: choice
         options:
           - collect-jobs
+          - browse-and-apply
           - check-messages
           - morning-briefing
           - evening-summary

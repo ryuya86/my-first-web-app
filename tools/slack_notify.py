@@ -17,6 +17,38 @@ from slack_sdk import WebClient
 
 BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "")
 CHANNEL = os.environ.get("SLACK_CHANNEL", "#案件通知")
+GITHUB_REPO = os.environ.get("GITHUB_REPOSITORY", "ryuya86/my-first-web-app")
+APPLY_QUEUE_FILE = os.path.join(os.path.dirname(__file__), "..", "state", "apply_queue.json")
+
+
+def _load_apply_queue():
+    if os.path.exists(APPLY_QUEUE_FILE):
+        with open(APPLY_QUEUE_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+
+def _save_apply_queue(queue):
+    os.makedirs(os.path.dirname(APPLY_QUEUE_FILE), exist_ok=True)
+    with open(APPLY_QUEUE_FILE, "w") as f:
+        json.dump(queue, f, ensure_ascii=False, indent=2)
+
+
+def _add_to_apply_queue(job_data):
+    """応募キューに案件を追加"""
+    queue = _load_apply_queue()
+    # 重複チェック
+    existing_ids = {item["id"] for item in queue}
+    if job_data.get("id") not in existing_ids:
+        queue.append({
+            "id": job_data.get("id", ""),
+            "title": job_data.get("title", ""),
+            "url": job_data.get("url", ""),
+            "proposal": job_data.get("proposal", ""),
+            "status": "pending",
+        })
+        _save_apply_queue(queue)
+    return len(queue)
 
 
 def get_client():
@@ -38,6 +70,13 @@ def send_job_found(data):
 
     score_icon = "🟢" if score >= 80 else "🟡" if score >= 60 else "🟠" if score >= 40 else "🔴"
 
+    # 応募キューに追加（提案文がある場合のみ）
+    if proposal:
+        _add_to_apply_queue(data)
+
+    # GitHub Actions手動実行URL
+    apply_url = f"https://github.com/{GITHUB_REPO}/actions/workflows/takumin.yml"
+
     blocks = [
         {"type": "header", "text": {"type": "plain_text", "text": f"📋 新着案件: {title[:140]}"}},
         {"type": "section", "fields": [
@@ -45,7 +84,9 @@ def send_job_found(data):
             {"type": "mrkdwn", "text": f"*カテゴリ:* {category}"},
         ]},
         {"type": "section", "text": {"type": "mrkdwn", "text": f"*概要:*\n{summary}"}},
-        {"type": "section", "text": {"type": "mrkdwn", "text": f"<{url}|案件ページを開く>"}},
+        {"type": "actions", "elements": [
+            {"type": "button", "text": {"type": "plain_text", "text": "📄 案件を見る"}, "url": url},
+        ]},
         {"type": "divider"},
     ]
 
@@ -54,6 +95,13 @@ def send_job_found(data):
             "type": "mrkdwn",
             "text": f"*📝 提案文:*\n```\n{proposal}\n```",
         }})
+        blocks.append({"type": "actions", "elements": [
+            {"type": "button", "text": {"type": "plain_text", "text": "✅ 応募する"}, "url": apply_url, "style": "primary"},
+            {"type": "button", "text": {"type": "plain_text", "text": "❌ スキップ"}, "url": url},
+        ]})
+        blocks.append({"type": "context", "elements": [
+            {"type": "mrkdwn", "text": f"💡 「応募する」→ GitHub Actionsで `browse-and-apply` を実行してください"},
+        ]})
 
     client.chat_postMessage(channel=CHANNEL, blocks=blocks, text=f"新着案件: {title}")
     print(f"[Slack] job_found 送信完了: {title[:50]}")
