@@ -41,7 +41,7 @@ REJECT_KEYWORDS = [
     "マルチ", "情報商材",
 ]
 
-MIN_BUDGET = 3000  # 最低予算（円）
+MIN_BUDGET = 0  # 予算フィルタ無効
 
 # 既に通知済みの案件を記録するファイル
 SEEN_JOBS_FILE = os.path.join(os.path.dirname(__file__), "seen_jobs.json")
