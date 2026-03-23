@@ -90,6 +90,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL || '' }}
           CROWDWORKS_EMAIL: ${{ secrets.CROWDWORKS_EMAIL }}
           CROWDWORKS_PASSWORD: ${{ secrets.CROWDWORKS_PASSWORD }}
           CW_MIN_MATCH_SCORE: ${{ vars.CW_MIN_MATCH_SCORE || '40' }}
