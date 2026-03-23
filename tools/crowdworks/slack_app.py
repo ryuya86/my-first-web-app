@@ -151,6 +151,69 @@ def send_job_with_approval_v2(client, channel, job, proposal):
     )
 
 
+def send_auto_applied_notification(client, channel, job, proposal, decision, result):
+    """自動応募の結果をSlackに報告（ボタンなし）"""
+    from job_scorer import format_score_for_slack
+    from competitor_monitor import format_competition_for_slack
+
+    success = result.get("success", False)
+    status_icon = "✅" if success else "❌"
+    status_text = "自動応募完了" if success else f"自動応募失敗: {result.get('message', '不明')}"
+
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": f"{status_icon} {status_text}"},
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*案件:*\n{job['title'][:100]}"},
+                {"type": "mrkdwn", "text": f"*カテゴリ:*\n{CATEGORY_LABELS.get(job.get('category', 'other'), 'その他')}"},
+            ],
+        },
+    ]
+
+    # スコア & 競合
+    if job.get("match_score") is not None:
+        score_text = format_score_for_slack(job)
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*🎯 スコア:* {score_text}"},
+        })
+
+    if job.get("competitor_count") is not None:
+        comp_text = format_competition_for_slack(job)
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": comp_text},
+        })
+
+    blocks.extend([
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*判定理由:* {decision.reason}"},
+        },
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"<{job['url']}|🔗 案件ページ>"},
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": "🤖 この応募は自動判定エンジンにより自動実行されました"},
+            ],
+        },
+    ])
+
+    client.chat_postMessage(
+        channel=channel,
+        blocks=blocks,
+        text=f"{status_icon} 自動応募: {job['title']}",
+    )
+
+
 @app.action("approve_apply")
 def handle_approve(ack, body, client):
     ack()

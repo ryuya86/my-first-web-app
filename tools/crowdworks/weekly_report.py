@@ -209,6 +209,129 @@ def build_monthly_report_blocks(year_month=None):
     return blocks
 
 
+def build_morning_briefing_blocks():
+    """朝のブリーフィング（昨日の活動 + 本日の予定）"""
+    from history_db import get_auto_decision_stats
+
+    stats = get_conversion_stats(days=1)
+    auto_stats = get_auto_decision_stats(days=1)
+
+    applied = stats.get("total_applied", 0) or 0
+    responded = stats.get("total_responded", 0) or 0
+    contracted = stats.get("total_contracted", 0) or 0
+    revenue = stats.get("total_revenue", 0) or 0
+
+    auto_count = auto_stats.get("auto_execute", 0)
+    approval_count = auto_stats.get("request_approval", 0)
+
+    today = datetime.now().strftime("%m/%d")
+
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": f"📋 おはようございます ({today})"},
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    "*昨日の活動報告*\n"
+                    f"```\n"
+                    f"応募:   {applied}件（自動: {auto_count}件 / 承認: {approval_count}件）\n"
+                    f"返信:   {responded}件\n"
+                    f"受注:   {contracted}件\n"
+                    f"売上:   ¥{revenue:,}\n"
+                    f"```"
+                ),
+            },
+        },
+    ]
+
+    # 承認待ちがあれば表示
+    pending = auto_stats.get("request_approval", 0)
+    if pending > 0:
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"⏳ *承認待ち: {pending}件* — Slackを確認してください"},
+        })
+
+    blocks.append({
+        "type": "context",
+        "elements": [
+            {"type": "mrkdwn", "text": f"生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M')}"},
+        ],
+    })
+
+    return blocks
+
+
+def build_evening_summary_blocks():
+    """夕方のサマリー（本日の活動）"""
+    from history_db import get_auto_decision_stats
+
+    stats = get_conversion_stats(days=1)
+    auto_stats = get_auto_decision_stats(days=1)
+
+    applied = stats.get("total_applied", 0) or 0
+    responded = stats.get("total_responded", 0) or 0
+
+    auto_count = auto_stats.get("auto_execute", 0)
+    approval_count = auto_stats.get("request_approval", 0)
+
+    today = datetime.now().strftime("%m/%d")
+
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": f"📊 本日の活動完了 ({today})"},
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"```\n"
+                    f"応募: {applied}件（自動: {auto_count}件 / 承認: {approval_count}件）\n"
+                    f"返信: {responded}件\n"
+                    f"```\n"
+                    f"明日7時に再開します。おやすみなさい。"
+                ),
+            },
+        },
+        {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": f"生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M')}"},
+            ],
+        },
+    ]
+
+    return blocks
+
+
+def send_morning_briefing(slack_client, channel):
+    """朝のブリーフィングをSlackに送信"""
+    blocks = build_morning_briefing_blocks()
+    slack_client.chat_postMessage(
+        channel=channel,
+        blocks=blocks,
+        text="📋 おはようございます",
+    )
+
+
+def send_evening_summary(slack_client, channel):
+    """夕方のサマリーをSlackに送信"""
+    blocks = build_evening_summary_blocks()
+    slack_client.chat_postMessage(
+        channel=channel,
+        blocks=blocks,
+        text="📊 本日の活動完了",
+    )
+
+
 def send_weekly_report(slack_client, channel):
     """週次レポートをSlackに送信"""
     blocks = build_weekly_report_blocks()

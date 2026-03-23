@@ -2,14 +2,21 @@
 CrowdWorks自動化パイプライン — 全機能統合版
 
 コマンド:
-  python main.py collect     - 新着案件を収集 → スコアリング → 提案文生成 → Slack通知
-  python main.py messages    - 未読メッセージを巡回 → AI返信案生成 → NGチェック → Slack通知
+  python main.py collect     - 新着案件を収集 → スコアリング → 提案文生成 → 自動応募/Slack通知
+  python main.py messages    - 未読メッセージを巡回 → AI返信案生成 → NGチェック → Slack承認依頼
   python main.py all         - collect + messages を両方実行
   python main.py alerts      - 返信遅延アラート + ヘルスチェックをSlackに送信
   python main.py report      - 週次レポートをSlackに送信
   python main.py monthly     - 月次収益レポートをSlackに送信
+  python main.py morning     - 朝のブリーフィングをSlackに送信
+  python main.py evening     - 夕方のサマリーをSlackに送信
   python main.py health      - システムヘルスチェックをSlackに送信
   python main.py serve       - Slackアプリ常駐（承認ボタン待受）
+
+環境変数:
+  CW_AUTO_APPLY_ENABLED      - true で高スコア案件の自動応募を有効化（デフォルト: false）
+  CW_AUTO_APPLY_MIN_SCORE    - 自動応募の最低スコア（デフォルト: 85）
+  CW_AUTO_APPLY_MAX_COMPETITORS - 自動応募の最大競合数（デフォルト: 20）
 """
 
 import os
@@ -18,6 +25,8 @@ import time
 
 from job_collector import collect_jobs
 from proposal_generator import generate_proposal
+from auto_decision import decide_job_application, log_decision
+from auto_apply import apply_to_job
 from error_recovery import with_retry, update_health, send_health_alert
 
 
@@ -95,12 +104,13 @@ def run_collect():
         print(f"  → 競合チェックエラー (スキップ): {e}")
         update_health("competitor_monitor", False, str(e))
 
-    # 4. 提案文生成 & 5. Slack通知
+    # 4. 提案文生成 & 5. 自動判定 & 6. 応募 or Slack通知
     notified = 0
+    auto_applied = 0
     errors = []
 
     for i, job in enumerate(passed, 1):
-        print(f"[4/5] ({i}/{len(passed)}) 提案文生成中: {job['title'][:50]}...")
+        print(f"[4/6] ({i}/{len(passed)}) 提案文生成中: {job['title'][:50]}...")
 
         try:
             proposal = _generate_proposal_with_retry(job)
@@ -120,22 +130,57 @@ def run_collect():
         except Exception as e:
             print(f"  → DB記録エラー (続行): {e}")
 
-        print(f"[5/5] ({i}/{len(passed)}) Slack通知中...")
+        # 5. 自動判定
+        decision = decide_job_application(job, proposal)
+        print(f"[5/6] ({i}/{len(passed)}) 判定: {decision.action} ({decision.reason})")
 
-        if use_bolt:
+        try:
+            log_decision(decision, job, proposal)
+        except Exception as e:
+            print(f"  → 判定ログエラー (続行): {e}")
+
+        # 6. 判定結果に基づく処理
+        if decision.action == "auto_execute":
+            # 自動応募
+            print(f"[6/6] ({i}/{len(passed)}) 自動応募実行中...")
             try:
-                from slack_app import send_job_with_approval_v2
-                send_job_with_approval_v2(client, channel, job, proposal)
+                result = apply_to_job(job["url"], proposal)
+                if result["success"]:
+                    auto_applied += 1
+                    print(f"  → 自動応募完了 ✓")
+                else:
+                    print(f"  → 自動応募失敗: {result['message']}")
+                    errors.append(f"自動応募失敗 [{job['title'][:30]}]: {result['message']}")
+
+                # Slackに結果報告（ボタンなし）
+                if use_bolt:
+                    from slack_app import send_auto_applied_notification
+                    send_auto_applied_notification(client, channel, job, proposal, decision, result)
                 notified += 1
-                print(f"  → 通知完了 ✓")
             except Exception as e:
-                errors.append(f"Slack通知失敗 [{job['title'][:30]}]: {e}")
-        else:
-            success = send_job_notification(job, proposal)
-            if success:
-                notified += 1
+                errors.append(f"自動応募エラー [{job['title'][:30]}]: {e}")
+
+        elif decision.action == "request_approval":
+            # 既存の承認フロー
+            print(f"[6/6] ({i}/{len(passed)}) Slack承認依頼中...")
+            if use_bolt:
+                try:
+                    from slack_app import send_job_with_approval_v2
+                    send_job_with_approval_v2(client, channel, job, proposal)
+                    notified += 1
+                    print(f"  → 通知完了 ✓")
+                except Exception as e:
+                    errors.append(f"Slack通知失敗 [{job['title'][:30]}]: {e}")
             else:
-                errors.append(f"Slack通知失敗 [{job['title'][:30]}]")
+                success = send_job_notification(job, proposal)
+                if success:
+                    notified += 1
+                else:
+                    errors.append(f"Slack通知失敗 [{job['title'][:30]}]")
+
+        else:
+            # reject → スキップ
+            print(f"  → スキップ（{decision.reason}）")
 
         if i < len(passed):
             time.sleep(2)
@@ -144,9 +189,9 @@ def run_collect():
         send_summary(total_found=len(jobs), total_notified=notified, errors=errors)
 
     update_health("collect_pipeline", success=len(errors) == 0,
-                  message=f"{notified}/{len(passed)}件通知完了")
+                  message=f"{notified}/{len(passed)}件通知完了 (自動応募: {auto_applied}件)")
 
-    print(f"\n=== 案件収集完了: {notified}/{len(passed)}件 通知済み (スキップ: {len(skipped)}件) ===")
+    print(f"\n=== 案件収集完了: {notified}/{len(passed)}件処理 (自動応募: {auto_applied}件, スキップ: {len(skipped)}件) ===")
     if errors:
         print(f"エラー: {len(errors)}件")
         for e in errors:
@@ -290,6 +335,28 @@ def run_monthly_report():
     print("月次収益レポート送信完了")
 
 
+def run_morning():
+    """朝のブリーフィング"""
+    from weekly_report import send_morning_briefing
+    use_bolt, client, channel = _get_slack_client()
+    if not use_bolt:
+        print("[WARN] SLACK_BOT_TOKEN未設定")
+        return
+    send_morning_briefing(client, channel)
+    print("朝のブリーフィング送信完了")
+
+
+def run_evening():
+    """夕方のサマリー"""
+    from weekly_report import send_evening_summary
+    use_bolt, client, channel = _get_slack_client()
+    if not use_bolt:
+        print("[WARN] SLACK_BOT_TOKEN未設定")
+        return
+    send_evening_summary(client, channel)
+    print("夕方のサマリー送信完了")
+
+
 def run_health():
     """ヘルスチェック"""
     from error_recovery import send_health_alert, format_health_for_slack, get_health_report
@@ -327,6 +394,8 @@ COMMANDS = {
     "alerts": run_alerts,
     "report": run_weekly_report,
     "monthly": run_monthly_report,
+    "morning": run_morning,
+    "evening": run_evening,
     "health": run_health,
     "serve": run_serve,
 }
@@ -340,12 +409,14 @@ if __name__ == "__main__":
         print("使い方: python main.py [コマンド]")
         print()
         print("コマンド:")
-        print("  collect   - 新着案件収集 → スコアリング → 提案文生成 → Slack通知")
-        print("  messages  - 未読メッセージ巡回 → AI返信案 → NGチェック → Slack通知")
+        print("  collect   - 新着案件収集 → スコアリング → 提案文生成 → 自動応募/Slack通知")
+        print("  messages  - 未読メッセージ巡回 → AI返信案 → NGチェック → Slack承認依頼")
         print("  all       - collect + messages を両方実行（デフォルト）")
         print("  alerts    - 返信遅延アラート + ヘルスチェック")
         print("  report    - 週次レポートをSlackに送信")
         print("  monthly   - 月次収益レポートをSlackに送信")
+        print("  morning   - 朝のブリーフィングをSlackに送信")
+        print("  evening   - 夕方のサマリーをSlackに送信")
         print("  health    - システムヘルスチェック")
         print("  serve     - Slackアプリ常駐（承認ボタン待受）")
         sys.exit(1)

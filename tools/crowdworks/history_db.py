@@ -89,6 +89,21 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_app_applied ON applications(applied_at);
             CREATE INDEX IF NOT EXISTS idx_msg_thread ON messages(thread_id);
             CREATE INDEX IF NOT EXISTS idx_msg_created ON messages(created_at);
+
+            CREATE TABLE IF NOT EXISTS auto_decisions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                decision_type TEXT NOT NULL,
+                action TEXT NOT NULL,
+                reason TEXT,
+                confidence REAL,
+                risk_level TEXT,
+                context_json TEXT,
+                outcome TEXT,
+                created_at TEXT DEFAULT (datetime('now', 'localtime'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_autodec_created ON auto_decisions(created_at);
+            CREATE INDEX IF NOT EXISTS idx_autodec_action ON auto_decisions(action);
         """)
 
 
@@ -216,6 +231,41 @@ def get_category_stats(days=30):
             ORDER BY contracted DESC
         """, (cutoff,)).fetchall()
         return [dict(r) for r in rows]
+
+
+def log_auto_decision(decision_type, action, reason, confidence=0,
+                      risk_level="", context_json="", outcome=""):
+    """自動判定ログを記録"""
+    with get_db() as conn:
+        conn.execute("""
+            INSERT INTO auto_decisions
+            (decision_type, action, reason, confidence, risk_level, context_json, outcome)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (decision_type, action, reason, confidence, risk_level, context_json, outcome))
+
+
+def update_auto_decision_outcome(decision_id, outcome):
+    """自動判定の結果を更新"""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE auto_decisions SET outcome = ? WHERE id = ?",
+            (outcome, decision_id),
+        )
+
+
+def get_auto_decision_stats(days=1):
+    """指定期間の自動判定統計"""
+    with get_db() as conn:
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        rows = conn.execute("""
+            SELECT
+                action,
+                COUNT(*) as count
+            FROM auto_decisions
+            WHERE created_at >= ?
+            GROUP BY action
+        """, (cutoff,)).fetchall()
+        return {row["action"]: row["count"] for row in rows}
 
 
 def get_response_time_stats(days=30):
